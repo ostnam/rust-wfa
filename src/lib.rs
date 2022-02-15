@@ -1,266 +1,122 @@
+/// This module defines all the types and functions used in the crate.
 pub mod wavefront {
+    /// This function is exported and can be called to perform an alignment.
+    /// The query cannot be longer than the text.
+    pub fn wavefront_align(query: &str, text: &str, pens: &Penalties) 
+        -> Result<Alignment, AlignError> {
+        if query.len() > text.len() {
+            return Err(
+                       AlignError::QueryTooLong(
+                           "Query is longer than the reference string.
+                            The length of the first string must be <= to the the length of the second string".to_string()
+                          ) 
+                      );
+        }
+
+        let mut current_front = new_wavefront_state(query, text, pens);
+        loop {
+            current_front.extend();
+            
+            if current_front.is_finished() {
+                break;
+            }
+
+            current_front.increment();
+
+            current_front.next();
+        }
+        current_front.backtrace()
+    }
+
+    /// Holds penalties scores.
+    /// There is no match penalty: matches do not change the score.
+    /// The penalty for any gap is length * extd_pen + open_pen. The extension pen is also applied
+    /// when a gap is opened.
     pub struct Penalties {
-        pub match_pen: i32,
         pub mismatch_pen: i32,
         pub open_pen: i32,
         pub extd_pen: i32,
     }
 
+    /// Returned by every alignment function.
+    /// The aligned strings have '-' at gaps.
     pub struct Alignment {
         pub score: i32,
         pub query_aligned: String,
         pub text_aligned: String,
     }
 
+    /// Error type, for alignment errors.
     #[derive(Debug)]
     pub enum AlignError {
         QueryTooLong(String),
     }
 
+    /// Alignment layers. Used for tracking back.
+    #[derive(Clone)]
     enum AlignmentLayer {
         Matches,
         Inserts,
         Deletes,
     }
 
-    struct WavefrontVec {
-        kind: AlignmentLayer,
-        diag_range: (i32, i32),
-        values: Vec<Vec<Option<i32>>>,
-    }
-
-    impl WavefrontVec {
-        fn add_wave(&mut self) {
-            self.values
-                .push( vec![None;   
-                    (self.diag_range.1 - self.diag_range.0) as usize
-                    ]
-                 );
-        }
-
-        fn at(&self, score: i32, diag: i32) -> Option<i32> {
-            if score < 0 {
-                return None;
-            }
-            if score >= self.values.len() as i32 {
-                return None;
-            }
-            if diag >= self.diag_range.1 || diag < self.diag_range.0 {
-                return None;
-            }
-            self.values[score as usize][(diag - self.diag_range.0) as usize]
-        }
-
-        fn set(&mut self, score: i32, diag: i32, value: i32) -> () {
-            if (score as usize) < self.values.len()
-                && score >= 0
-                && diag >= self.diag_range.0
-                && diag < self.diag_range.1
-            {
-                self.values[score as usize][(diag - self.diag_range.0) as usize] = Some(value);
-            }
-        }
-
-        fn increment(&mut self, score: i32, diag: i32) -> () {
-            if let Some(previous) = self.at(score, diag) {
-                self.set(score, diag, previous + 1);
-            }
-        }
-
-        fn update_ins( &mut self,
-                       score: &i32,
-                       diag: &i32,
-                       matches: &WavefrontVec,
-                       pens: &Penalties        ) -> () {
-            match (&self.kind, &matches.kind) {
-                (AlignmentLayer::Inserts, AlignmentLayer::Matches) => (),
-                _ => panic!("update_ins called on two layers of incorrect type"),
-            }
-            match (
-                matches.at(score - pens.open_pen - pens.extd_pen, diag - 1),
-                self.at(score - pens.extd_pen, diag - 1)
-                ) {
-                (None,    None)    => (),
-                (Some(x), None)    => self.set(*score, *diag, x),
-                (None,    Some(x)) => self.set(*score, *diag, x),
-                (Some(x), Some(y)) => self.set(*score, *diag, if x > y {x} else {y} ),
-            }
-        }
-
-        fn update_del( &mut self,
-                       score: &i32,
-                       diag: &i32,
-                       matches: &WavefrontVec,
-                       pens: &Penalties        ) -> () {
-            match (&self.kind, &matches.kind) {
-                (AlignmentLayer::Deletes, AlignmentLayer::Matches) => (),
-                _ => panic!("update_ins called on two layers of incorrect type"),
-            }
-            match (
-                matches.at(score - pens.open_pen - pens.extd_pen, diag + 1),
-                self.at(score - pens.extd_pen, diag + 1)
-                ) {
-                (None,    None)    => (),
-                (Some(x), None)    => self.set(*score, *diag, 1 + x),
-                (None,    Some(x)) => self.set(*score, *diag, 1 + x),
-                (Some(x), Some(y)) => self.set(*score, *diag, 1 + if x > y {x} else {y} ),
-            }
-        }
-        fn update_mat(
-            &mut self,
-            score: &i32,
-            diag: &i32,
-            inserts: &WavefrontVec,
-            deletes: &WavefrontVec,
-            pens: &Penalties,
-        ) -> () {
-            match (&self.kind, &inserts.kind, &deletes.kind) {
-                (AlignmentLayer::Matches, AlignmentLayer::Inserts, AlignmentLayer::Deletes) => (),
-                _ => panic!("update_ins called on two layers of incorrect type"),
-            }
-            let largest = match (
-                self.at(score-pens.mismatch_pen, *diag),
-                    inserts.at(*score, *diag),
-                    deletes.at(*score, *diag),
-                ) {
-                (None, None, None) => None,
-                (Some(x), None, None) => Some(x + 1),
-                (None, Some(x), None) => Some(x),
-                (None, None, Some(x)) => Some(x),
-                (Some(x), Some(y), None) => Some( if x + 1 > y { x + 1 } else { y } ),
-                (Some(x), None, Some(y)) => Some( if x + 1 > y { x + 1 } else { y } ),
-                (None, Some(x), Some(y)) => Some( if x > y { x } else { y } ),
-                (Some(x), Some(y), Some(z)) => Some( if x + 1 > y { if x + 1 > z {x + 1} else {z} } else { if y > z {y} else {z}}), 
-            };
-            if let Some(x) = largest {
-                self.set(*score, *diag, x);
-            }
-        }
-    }
-
-    pub fn wavefront_align(
-        query: &str,
-        text: &str,
-        pens: &Penalties,
-    ) -> Result<Alignment, AlignError> {
-        if query.len() > text.len() {
-            return Err(AlignError::QueryTooLong("Query is longer than the reference string. The length of the first string must be <= to the the length of the second string".to_string()));
-        }
-        let final_diagonal: i32 = query.len() as i32 - text.len() as i32;
-
-        let q_chars: Vec<char> = query.to_string().chars().collect();
-        let t_chars: Vec<char> = text.to_string().chars().collect();
-
-        let mut matches_front = WavefrontVec {
-            kind: AlignmentLayer::Matches,
-            diag_range: (0 - text.len() as i32, 0 + query.len() as i32),
-            values: Vec::new(),
-        };
-
-
-        let mut inserts_front = WavefrontVec {
-            kind: AlignmentLayer::Inserts,
-            diag_range: (0 - text.len() as i32, 0 + query.len() as i32),
-            values: Vec::new(),
-        };
-
-        let mut deletes_front = WavefrontVec {
-            kind: AlignmentLayer::Deletes,
-            diag_range: (0 - text.len() as i32, 0 + query.len() as i32),
-            values: Vec::new(),
-        };
-
-        let mut current_score: i32 = 0;
-        let mut lowest_diag: i32 = 0;
-        let mut highest_diag: i32 = 0;
-
-        matches_front.add_wave();
-        matches_front.values[0][(0 - matches_front.diag_range.0) as usize] = Some(0);
-        inserts_front.add_wave();
-        deletes_front.add_wave();
-
-        loop {
-            wavefront_extend(
-                &mut matches_front,
-                &q_chars,
-                &t_chars,
-                current_score,
-                lowest_diag,
-                highest_diag,
-            );
-
-            match matches_front.at(current_score, final_diagonal) {
-                Some(a) => {
-                    if a == text.len() as i32 {
-                        break;
-                    }
-                }
-                _ => (),
-            }
-
-            current_score += 1;
-            matches_front.add_wave();
-            inserts_front.add_wave();
-            deletes_front.add_wave();
-            wavefront_next(
-                &mut matches_front,
-                &mut inserts_front,
-                &mut deletes_front,
-                &current_score,
-                &mut lowest_diag,
-                &mut highest_diag,
-                &pens
-            );
-        }
-        wavefront_backtrace(
-            &matches_front,
-            &inserts_front,
-            &deletes_front,
-            &q_chars,
-            &t_chars,
-            current_score,
-            final_diagonal,
-            pens,
-        )
-    }
-
-    fn wavefront_extend(
-        front: &mut WavefrontVec,
-        q_chars: &Vec<char>,
-        t_chars: &Vec<char>,
+    /// Main struct, implementing the algorithm.
+    struct WavefrontState<'a> {
+        query: &'a str,
+        text:  &'a str,
+        pens:  &'a Penalties,
+        q_chars: Vec<char>,
+        t_chars: Vec<char>,
         current_score: i32,
-        lowest_diag: i32,
-        highest_diag: i32,
-    ) -> () {
-        for diag in lowest_diag..highest_diag + 1 {
-            let mut query_pos = match front.at(current_score, diag) {
-                Some(a) => a + diag,
-                _       => continue,
-            };
-            let mut text_pos = match front.at(current_score, diag) {
-                Some(a) => a,
-                _       => continue,
-            };
+        diag_range: Vec<(i32, i32)>,
+        final_diagonal: i32,
+        matches: Vec<Vec<(i32, AlignmentLayer)>>,
+        deletes: Vec<Vec<(i32, AlignmentLayer)>>,
+        inserts: Vec<Vec<(i32, AlignmentLayer)>>,
+    }
 
-            while query_pos < q_chars.len() as i32 && text_pos < t_chars.len() as i32 {
-                match (
-                    q_chars.get(query_pos as usize),
-                    t_chars.get(text_pos as usize),
-                ) {
-                    (Some(q), Some(t)) => {
-                        if q == t {
-                            front.increment(current_score, diag);
-                            query_pos += 1;
-                            text_pos  += 1;
-                        } else {
-                            break;
+
+    impl WavefrontState<'_> {
+
+        fn wavefront_extend(&mut self) -> () {
+            let lowest_diag  = self.diag_range[self.current_score as usize].0;
+            let highest_diag = self.diag_range[self.current_score as usize].1;
+
+            for diag in lowest_diag..=highest_diag {
+                let mut query_pos = match self.matches.at(self.current_score, diag) {
+                    Some(a) => a + diag,
+                    _       => continue,
+                };
+                let mut text_pos = match self.matches.at(self.current_score, diag) {
+                    Some(a) => a,
+                    _       => continue,
+                };
+
+                while query_pos < q_chars.len() as i32 && text_pos < t_chars.len() as i32 {
+                    match (
+                        q_chars.get(query_pos as usize),
+                        t_chars.get(text_pos as usize),
+                    ) {
+                        (Some(q), Some(t)) => {
+                            if q == t {
+                                self.increment(diag);
+                                query_pos += 1;
+                                text_pos  += 1;
+                            } else {
+                                break;
+                            }
                         }
+                        _ => break,
                     }
-                    _ => break,
                 }
             }
         }
-    }
+        fn increment(self, diagonal: i32) -> () {
+            self.matches[curr_score][diagonal] += 1;
+        }
+
+        // WE ARE HERE
+
     fn wavefront_next(
         matches: &mut WavefrontVec,
         inserts: &mut WavefrontVec,
@@ -386,6 +242,121 @@ pub mod wavefront {
             score,
             query_aligned: q,
             text_aligned: t,
-        })
+            })
+        }
     }
+    fn add_wave(&mut self, width: usize) {
+                self.values
+                    .push(
+                        vec![None; width]
+                        );
+            }
+
+            fn at(&self, score: i32, diag: i32) -> Option<(i32, AlignmentLayer)> {
+                if score < 0 {
+                    return None;
+                }
+                if score >= self.values.len() as i32 {
+                    return None;
+                }
+                if diag >= self.diag_range.1 || diag < self.diag_range.0 {
+                    return None;
+                }
+                self.values[score as usize][(diag - self.diag_range.0) as usize]
+            }
+
+            fn set(&mut self, score: i32, diag: i32, value: i32) -> () {
+                if (score as usize) < self.values.len()
+                    && score >= 0
+                    && diag >= self.diag_range.0
+                    && diag < self.diag_range.1
+                {
+                    self.values[score as usize][(diag - self.diag_range.0) as usize] = Some(value);
+                }
+            }
+
+            fn increment(&mut self, score: i32, diag: i32) -> () {
+                if let Some(previous) = self.at(score, diag) {
+                    self.set(score, diag, previous + 1);
+                }
+            }
+
+            fn update_ins( &mut self,
+                           score: &i32,
+                           diag: &i32,
+                           matches: &WavefrontVec,
+                           pens: &Penalties        ) -> () {
+                match (&self.kind, &matches.kind) {
+                    (AlignmentLayer::Inserts, AlignmentLayer::Matches) => (),
+                    _ => panic!("update_ins called on two layers of incorrect type"),
+                }
+                match (
+                    matches.at(score - pens.open_pen - pens.extd_pen, diag - 1),
+                    self.at(score - pens.extd_pen, diag - 1)
+                    ) {
+                    (None,    None)    => (),
+                    (Some(x), None)    => self.set(*score, *diag, x),
+                    (None,    Some(x)) => self.set(*score, *diag, x),
+                    (Some(x), Some(y)) => self.set(*score, *diag, if x > y {x} else {y} ),
+                }
+            }
+
+            fn update_del( &mut self,
+                           score: &i32,
+                           diag: &i32,
+                           matches: &WavefrontVec,
+                           pens: &Penalties        ) -> () {
+                match (&self.kind, &matches.kind) {
+                    (AlignmentLayer::Deletes, AlignmentLayer::Matches) => (),
+                    _ => panic!("update_ins called on two layers of incorrect type"),
+                }
+                match (
+                    matches.at(score - pens.open_pen - pens.extd_pen, diag + 1),
+                    self.at(score - pens.extd_pen, diag + 1)
+                    ) {
+                    (None,    None)    => (),
+                    (Some(x), None)    => self.set(*score, *diag, 1 + x),
+                    (None,    Some(x)) => self.set(*score, *diag, 1 + x),
+                    (Some(x), Some(y)) => self.set(*score, *diag, 1 + if x > y {x} else {y} ),
+                }
+            }
+            fn update_mat(
+                &mut self,
+                score: &i32,
+                diag: &i32,
+                inserts: &WavefrontVec,
+                deletes: &WavefrontVec,
+                pens: &Penalties,
+            ) -> () {
+                match (&self.kind, &inserts.kind, &deletes.kind) {
+                    (AlignmentLayer::Matches, AlignmentLayer::Inserts, AlignmentLayer::Deletes) => (),
+                    _ => panic!("update_ins called on two layers of incorrect type"),
+                }
+                let largest = match (
+                    self.at(score-pens.mismatch_pen, *diag),
+                        inserts.at(*score, *diag),
+                        deletes.at(*score, *diag),
+                    ) {
+                    (None, None, None) => None,
+                    (Some(x), None, None) => Some(x + 1),
+                    (None, Some(x), None) => Some(x),
+                    (None, None, Some(x)) => Some(x),
+                    (Some(x), Some(y), None) => Some( if x + 1 > y { x + 1 } else { y } ),
+                    (Some(x), None, Some(y)) => Some( if x + 1 > y { x + 1 } else { y } ),
+                    (None, Some(x), Some(y)) => Some( if x > y { x } else { y } ),
+                    (Some(x), Some(y), Some(z)) => Some( if x + 1 > y { if x + 1 > z {x + 1} else {z} } else { if y > z {y} else {z}}), 
+                };
+                if let Some(x) = largest {
+                    self.set(*score, *diag, x);
+                }
+            }
+
+    fn new_wavefront_state() -> WavefrontState {
+        WavefrontState {
+            current_score: 0,
+            diag_range:    0,
+        }
+    }
+    #[test]
+    fn 
 }
