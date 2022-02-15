@@ -1,5 +1,6 @@
 /// This module defines all the types and functions used in the crate.
 pub mod wavefront {
+
     /// This function is exported and can be called to perform an alignment.
     /// The query cannot be longer than the text.
     pub fn wavefront_align(query: &str, text: &str, pens: &Penalties) 
@@ -28,10 +29,40 @@ pub mod wavefront {
         current_front.backtrace()
     }
 
+    /// This function is exported and can be called to perform an alignment.
+    /// The query cannot be longer than the text.
+    pub fn wavefront_align_adaptive(query: &str,
+                                    text: &str,
+                                    pens: &Penalties) 
+        -> Result<Alignment, AlignError> {
+        if query.len() > text.len() {
+            return Err(
+                       AlignError::QueryTooLong(
+                           "Query is longer than the reference string.
+                            The length of the first string must be <= to the the length of the second string".to_string()
+                          ) 
+                      );
+        }
+
+        let mut current_front = new_wavefront_state(query, text, pens);
+
+        loop {
+            current_front.extend();                // WF-extend
+            if current_front.is_finished() {
+                break;
+            }
+            current_front.increment();             // Add 1 to the score.
+            current_front.next();                  // WF-next
+        }
+        current_front.backtrace()
+    }
+
+
     /// Holds penalties scores.
     /// There is no match penalty: matches do not change the score.
     /// The penalty for any gap is length * extd_pen + open_pen. The extension pen is also applied
     /// when a gap is opened.
+    #[derive(Debug, PartialEq, Eq)]
     pub struct Penalties {
         pub mismatch_pen: i32,
         pub open_pen: i32,
@@ -53,7 +84,7 @@ pub mod wavefront {
     }
 
     /// Alignment layers. Used for tracking back.
-    #[derive(Clone)]
+    #[derive(Debug, Clone, PartialEq, Eq)]
     enum AlignmentLayer {
         Matches,
         Inserts,
@@ -61,6 +92,7 @@ pub mod wavefront {
     }
 
     /// Main struct, implementing the algorithm.
+    #[derive(Debug, PartialEq, Eq)]
     struct WavefrontState<'a> {
         query: &'a str,
         text:  &'a str,
@@ -69,15 +101,41 @@ pub mod wavefront {
         t_chars: Vec<char>,
         current_score: i32,
         diag_range: Vec<(i32, i32)>,
+        num_diags: i32,
         final_diagonal: i32,
-        matches: Vec<Vec<(i32, AlignmentLayer)>>,
-        deletes: Vec<Vec<(i32, AlignmentLayer)>>,
-        inserts: Vec<Vec<(i32, AlignmentLayer)>>,
+        matches: Vec<Vec<Option<(i32, AlignmentLayer)>>>,
+        deletes: Vec<Vec<Option<(i32, AlignmentLayer)>>>,
+        inserts: Vec<Vec<Option<(i32, AlignmentLayer)>>>,
     }
 
+    fn new_wavefront_state<'a>(query: &'a str,
+                               text:  &'a str,
+                               pens:  &'a Penalties) -> WavefrontState<'a> {
+        let q_chars: Vec<char> = query.chars().collect();
+        let t_chars: Vec<char> = text.chars().collect();
 
+        let final_diagonal = (q_chars.len() as i32) - (t_chars.len() as i32);
+        let num_diags = (q_chars.len() + t_chars.len() - 1) as i32;
+
+        let mut matches = vec![vec![None; num_diags as usize]; 1];
+        WavefrontState {
+            query,
+            text,
+            pens,
+            q_chars,
+            t_chars,
+            current_score: 0,
+            diag_range: vec![(0, 1)],
+            num_diags,
+            final_diagonal,
+            matches,
+            deletes: Vec::new(),
+            inserts: Vec::new(),
+        }
+    }
+
+                                // WE ARE HERE
     impl WavefrontState<'_> {
-
         fn wavefront_extend(&mut self) -> () {
             let lowest_diag  = self.diag_range[self.current_score as usize].0;
             let highest_diag = self.diag_range[self.current_score as usize].1;
@@ -115,7 +173,6 @@ pub mod wavefront {
             self.matches[curr_score][diagonal] += 1;
         }
 
-        // WE ARE HERE
 
     fn wavefront_next(
         matches: &mut WavefrontVec,
@@ -351,12 +408,45 @@ pub mod wavefront {
                 }
             }
 
-    fn new_wavefront_state() -> WavefrontState {
-        WavefrontState {
-            current_score: 0,
-            diag_range:    0,
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+
+        #[test]
+        fn test_new_wavefront_state() -> () {
+        // Doesn't do much currently but at least if we accidently
+        // change the behaviour/meaning of the wavefront state structs,
+        // we'll notice.
+            let state = new_wavefront_state("GATA",
+                "TAGAC",
+                &Penalties {
+                    mismatch_pen: 1,
+                    open_pen: 2,
+                    extd_pen: 3,
+                }
+            );
+
+            let manual = WavefrontState {
+                query: "GATA",
+                text:  "TAGAC",
+                pens: &Penalties {
+                    mismatch_pen: 1,
+                    open_pen: 2,
+                    extd_pen: 3,
+                },
+                q_chars: "GATA".chars().collect(),
+                t_chars: "TAGAC".chars().collect(),
+                current_score: 0,
+                diag_range: vec![(0, 1)],
+                num_diags: 6,
+                final_diagonal: -1,
+                matches: vec![vec![None; 6]; 1],
+                deletes: Vec::new(),
+                inserts: Vec::new(),
+            };
+
+            assert_eq!(state, manual);
         }
     }
-    #[test]
-    fn 
 }
