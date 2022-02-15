@@ -99,15 +99,32 @@ pub mod wavefront {
         pens:  &'a Penalties,
         q_chars: Vec<char>,
         t_chars: Vec<char>,
+
+        /// Counter for looping and later backtracking.
         current_score: i32,
+
+        /// Holds the (minimal, maximal) diagonal of each iteration.
         diag_range: Vec<(i32, i32)>,
+
+        /// Number of diagonals in the query-text alignment
+        /// == to q_chars + t_chars - 1.
         num_diags: i32,
+
+        /// The only diagonal on which we can align every char of query and
+        /// text.
         final_diagonal: i32,
+
+        /// Will store the furthest-reaching point.
+        /// First index = score of that furthest-reaching point .
+        /// Second      = diagonal.
+        /// (just like in the article)
         matches: Vec<Vec<Option<(i32, AlignmentLayer)>>>,
         deletes: Vec<Vec<Option<(i32, AlignmentLayer)>>>,
         inserts: Vec<Vec<Option<(i32, AlignmentLayer)>>>,
     }
 
+    /// Initializes a WavefrontState with the correct fields, for 2 string
+    /// slices and a penalties struct.
     fn new_wavefront_state<'a>(query: &'a str,
                                text:  &'a str,
                                pens:  &'a Penalties) -> WavefrontState<'a> {
