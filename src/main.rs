@@ -12,14 +12,13 @@ fn main() {
     text = text.trim().to_string();
     
     let pens = Penalties {
-        match_pen: 0,
         mismatch_pen: 1,
         open_pen:  3,
         extd_pen:  2,
     };
 
     match wavefront_align(&query, &text, &pens) {
-        Ok(alignment) => print!("{}\n{}\n{}\n", alignment.score, alignment.query_aligned, alignment.text_aligned),
-        Err(e) => panic!("Alignment returned an error: {:?}", e),
+        AlignResult::Res(alignment) => print!("{}\n{}\n{}\n", alignment.score, alignment.query_aligned, alignment.text_aligned),
+        AlignResult::Error(e) => panic!("Alignment returned an error: {:?}", e),
     };
 }

@@ -1,12 +1,13 @@
 /// This module defines all the types and functions used in the crate.
 pub mod wavefront {
+    use std::cmp::{min, max};
 
     /// This function is exported and can be called to perform an alignment.
     /// The query cannot be longer than the text.
     pub fn wavefront_align(query: &str, text: &str, pens: &Penalties) 
-        -> Result<Alignment, AlignError> {
+        -> AlignResult {
         if query.len() > text.len() {
-            return Err(
+            return AlignResult::Error(
                        AlignError::QueryTooLong(
                            "Query is longer than the reference string.
                             The length of the first string must be <= to the the length of the second string".to_string()
@@ -22,7 +23,7 @@ pub mod wavefront {
                 break;
             }
 
-            current_front.increment();
+            current_front.increment_score();
 
             current_front.next();
         }
@@ -34,9 +35,9 @@ pub mod wavefront {
     pub fn wavefront_align_adaptive(query: &str,
                                     text: &str,
                                     pens: &Penalties) 
-        -> Result<Alignment, AlignError> {
+        -> AlignResult {
         if query.len() > text.len() {
-            return Err(
+            return AlignResult::Error(
                        AlignError::QueryTooLong(
                            "Query is longer than the reference string.
                             The length of the first string must be <= to the the length of the second string".to_string()
@@ -51,7 +52,7 @@ pub mod wavefront {
             if current_front.is_finished() {
                 break;
             }
-            current_front.increment();             // Add 1 to the score.
+            current_front.increment_score();       // Add 1 to the score.
             current_front.next();                  // WF-next
         }
         current_front.backtrace()
@@ -83,8 +84,13 @@ pub mod wavefront {
         QueryTooLong(String),
     }
 
+    pub enum AlignResult {
+        Res(Alignment),
+        Error(AlignError)
+    }
+
     /// Alignment layers. Used for tracking back.
-    #[derive(Debug, Clone, PartialEq, Eq)]
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
     enum AlignmentLayer {
         Matches,
         Inserts,
@@ -114,6 +120,10 @@ pub mod wavefront {
         /// text.
         final_diagonal: i32,
 
+        /// Highest and lowest possible diags.
+        highest_diag: i32,
+        lowest_diag:  i32,
+
         /// Will store the furthest-reaching point.
         /// First index = score of that furthest-reaching point .
         /// Second      = diagonal.
@@ -133,8 +143,12 @@ pub mod wavefront {
 
         let final_diagonal = (q_chars.len() as i32) - (t_chars.len() as i32);
         let num_diags = (q_chars.len() + t_chars.len() - 1) as i32;
+        let highest_diag = q_chars.len() as i32 - 1;
+        let lowest_diag = (-1 * t_chars.len() as i32) - 1;
 
         let mut matches = vec![vec![None; num_diags as usize]; 1];
+        matches[0][0] = Some( (0, AlignmentLayer::Matches) );
+
         WavefrontState {
             query,
             text,
@@ -142,35 +156,40 @@ pub mod wavefront {
             q_chars,
             t_chars,
             current_score: 0,
-            diag_range: vec![(0, 1)],
+            diag_range: vec![(0, 0)],
             num_diags,
             final_diagonal,
+            highest_diag,
+            lowest_diag,
             matches,
             deletes: Vec::new(),
             inserts: Vec::new(),
         }
     }
 
-                                // WE ARE HERE
     impl WavefrontState<'_> {
-        fn wavefront_extend(&mut self) -> () {
+        fn extend(&mut self) -> () {
+            //! Extends the matches wavefronts to the furthest reaching point
+            //! of the current score.
             let lowest_diag  = self.diag_range[self.current_score as usize].0;
             let highest_diag = self.diag_range[self.current_score as usize].1;
 
             for diag in lowest_diag..=highest_diag {
-                let mut query_pos = match self.matches.at(self.current_score, diag) {
-                    Some(a) => a + diag,
-                    _       => continue,
+                let mut query_pos = match self.at(AlignmentLayer::Matches, self.current_score, diag) {
+                    Some( (val, _) ) => val + diag,
+                    _                => continue,
                 };
-                let mut text_pos = match self.matches.at(self.current_score, diag) {
-                    Some(a) => a,
-                    _       => continue,
-                };
+                let mut text_pos = query_pos - diag;
+                // The furthest reaching point value stored is the number
+                // of matched chars in the Text string.
+                // For any diagonal on the dynamic programming alignment 
+                // matrix, the number of chars matched for the Query is the
+                // number of Text chars matched + diagonal.
 
-                while query_pos < q_chars.len() as i32 && text_pos < t_chars.len() as i32 {
+                while query_pos < self.q_chars.len() as i32 && text_pos < self.t_chars.len() as i32 {
                     match (
-                        q_chars.get(query_pos as usize),
-                        t_chars.get(text_pos as usize),
+                        self.q_chars.get(query_pos as usize),
+                        self.t_chars.get(text_pos as usize),
                     ) {
                         (Some(q), Some(t)) => {
                             if q == t {
@@ -186,245 +205,237 @@ pub mod wavefront {
                 }
             }
         }
-        fn increment(self, diagonal: i32) -> () {
-            self.matches[curr_score][diagonal] += 1;
+
+        fn increment_score(&mut self) -> () {
+        //! Increments the current score by 1.
+            self.current_score += 1;
+        }
+
+        fn increment(&mut self, diagonal: i32) -> () {
+        //! Called by wf_next to increment the furthest-reaching point by 1.
+            match self.at(AlignmentLayer::Matches, self.current_score, diagonal) {
+                Some( (score, layer) ) => {
+                    self.matches[self.current_score as usize][(diagonal - self.diag_range[self.current_score as usize].0) as usize] =
+                        Some( (score + 1, layer) )
+                },
+                None                   =>
+                    self.matches[self.current_score as usize][(diagonal - self.diag_range[self.current_score as usize].0) as usize] =
+                        Some( (1, AlignmentLayer::Matches) )
+            };
+        }
+        
+        fn is_finished(&self) -> bool {
+        //! Checks if the alignment is completed: for the current score,
+        //! on the final diagonal, the furthest reaching point matches every
+        //! char of Text and Query.
+            match self.at(AlignmentLayer::Matches, self.current_score, self.final_diagonal) {
+                Some( (score, _) ) => { 
+                    if score >= self.t_chars.len() as i32 {
+                        true
+                    } else {
+                        false
+                    }
+                },
+                _ => false,
+            }
+
         }
 
 
-    fn wavefront_next(
-        matches: &mut WavefrontVec,
-        inserts: &mut WavefrontVec,
-        deletes: &mut WavefrontVec,
-        score: &i32,
-        lo: &mut i32,
-        hi: &mut i32,
-        pens: &Penalties,
-    ) -> () {
-        *hi += 1;
-        *lo -= 1;
+                    // WE ARE HERE
+        fn next(&mut self) -> () {
+        //! Equivalent of WAVEFRONT_NEXT
+        
+            let hi = max(1 + vec![self.diag_range.get( (self.current_score - self.pens.mismatch_pen) as usize),
+                              self.diag_range.get( (self.current_score - self.pens.open_pen - self.pens.extd_pen) as usize),
+                              self.diag_range.get( (self.current_score - self.pens.extd_pen) as usize)]
+                             .iter()
+                             .map(|x| x.unwrap_or(&(0, 0)).1 )
+                             .max()
+                             .unwrap(),
+                         self.highest_diag);
+        
+            let lo = min(vec![self.diag_range.get( (self.current_score - self.pens.mismatch_pen) as usize),
+                              self.diag_range.get( (self.current_score - self.pens.open_pen - self.pens.extd_pen) as usize),
+                              self.diag_range.get( (self.current_score - self.pens.extd_pen) as usize)]
+                             .iter()
+                             .map(|x| x.unwrap_or(&(0, 0)).0 )
+                             .min()
+                             .unwrap() - 1,
+                         self.lowest_diag);
+            
+            self.diag_range.push( (lo, hi) );
 
-        for diag in *lo..*hi + 1 {
-            inserts.update_ins(score, &diag, &matches, &pens);
-            deletes.update_del(score, &diag, &matches, &pens);
-            matches.update_mat(score, &diag, &inserts, &deletes, &pens);
+            self.matches.push( vec![None; (self.highest_diag - self.lowest_diag) as usize] );
+            self.inserts.push( vec![None; (self.highest_diag - self.lowest_diag) as usize] );
+            self.deletes.push( vec![None; (self.highest_diag - self.lowest_diag) as usize] );
+
+
+            for diag in lo..=hi {
+                self.update_ins(diag);
+                self.update_del(diag);
+                self.update_mat(diag);
+            }
         }
+
+        fn update_ins(&mut self, diag: i32) -> () {
+            match (
+                self.at(AlignmentLayer::Matches, self.current_score - self.pens.open_pen - self.pens.extd_pen, diag - 1),
+                self.at(AlignmentLayer::Inserts, self.current_score - self.pens.extd_pen, diag - 1)
+                ) {
+                (None,    None)    => (),
+                (Some(x), None)    => self.inserts[self.current_score as usize][(diag - self.diag_range[self.current_score as usize].0) as usize] = Some((x.0, AlignmentLayer::Matches)),
+                (None,    Some(x)) => self.inserts[self.current_score as usize][(diag - self.diag_range[self.current_score as usize].0) as usize] = Some((x.0, AlignmentLayer::Inserts)),
+                (Some(x), Some(y)) => if x.0 > y.0 {
+                    self.inserts[self.current_score as usize][(diag - self.diag_range[self.current_score as usize].0) as usize] = Some((x.0, AlignmentLayer::Matches));
+                } else {
+                    self.inserts[self.current_score as usize][(diag - self.diag_range[self.current_score as usize].0) as usize] = Some((y.0, AlignmentLayer::Inserts));
+                },
+            }
+        }
+
+        fn update_del(&mut self, diag: i32) -> () {
+            match (
+                self.at(AlignmentLayer::Matches, self.current_score - self.pens.open_pen - self.pens.extd_pen, diag + 1),
+                self.at(AlignmentLayer::Deletes, self.current_score - self.pens.extd_pen, diag + 1)
+                ) {
+                (None,    None)    => (),
+                (Some(x), None)    => self.deletes[self.current_score as usize][(diag - self.diag_range[self.current_score as usize].0) as usize]= Some( (x.0 + 1, AlignmentLayer::Matches) ),
+                (None,    Some(x)) => self.deletes[self.current_score as usize][(diag - self.diag_range[self.current_score as usize].0) as usize] = Some( (x.0 + 1, AlignmentLayer::Deletes) ),
+                (Some(x), Some(y)) => if x.0 > y.0 {
+                    self.deletes[self.current_score as usize][(diag - self.diag_range[self.current_score as usize].0) as usize] = Some( (x.0 + 1, AlignmentLayer::Matches) );
+                } else {
+                    self.deletes[self.current_score as usize][(diag - self.diag_range[self.current_score as usize].0) as usize] = Some( (y.0 + 1, AlignmentLayer::Deletes) );
+                }
+            }
+        }
+
+        fn update_mat(&mut self, diag: i32)  -> () {
+            self.matches[self.current_score as usize][(diag - self.diag_range[self.current_score as usize].0) as usize] = match (
+                self.at(AlignmentLayer::Matches, self.current_score-self.pens.mismatch_pen, diag),
+                self.at(AlignmentLayer::Inserts, self.current_score, diag),
+                self.at(AlignmentLayer::Deletes, self.current_score, diag),
+                ) {
+                (None, None, None) => None,
+                (Some(x), None, None) => Some( (x.0 + 1, AlignmentLayer::Matches) ),
+                (None, Some(x), None) => Some( (x.0, AlignmentLayer::Inserts) ),
+                (None, None, Some(x)) => Some( (x.0, AlignmentLayer::Deletes) ),
+                (Some(x), Some(y), None) => Some( if x.0 + 1 > y.0 { (x.0 + 1, AlignmentLayer::Matches) } else { (y.0, AlignmentLayer::Inserts) } ),
+                (Some(x), None, Some(y)) => Some( if x.0 + 1 > y.0 { (x.0 + 1, AlignmentLayer::Matches) } else { (y.0, AlignmentLayer::Deletes) } ),
+                (None, Some(x), Some(y)) => Some( if x.0 > y.0 { (x.0, AlignmentLayer::Inserts) } else { (y.0, AlignmentLayer::Deletes) } ),
+                (Some(x), Some(y), Some(z)) => Some( if x.0 + 1 > y.0 {
+                                                         if x.0 + 1 > z.0 { (x.0 + 1, AlignmentLayer::Matches) }
+                                                         else { (y.0, AlignmentLayer::Inserts) }
+                                                    } else { 
+                                                        if y.0 > z.0 {
+                                                            (y.0, AlignmentLayer::Inserts) }
+                                                        else { (z.0, AlignmentLayer::Deletes) }
+                                                    }), 
+            };
+        }
+
+        fn backtrace(&self) -> AlignResult {
+            let mut curr_score = self.current_score;
+            let mut curr_diag  = self.final_diagonal;
+            let mut curr_layer = AlignmentLayer::Matches;
+
+            let mut query_aligned = String::new();
+            let mut text_aligned = String::new();
+
+            while curr_score > 0 {
+                match &mut curr_layer {
+                    &mut AlignmentLayer::Matches => {
+                        if let Some( (score, direction) ) =
+                            self.matches[curr_score as usize][(curr_diag - self.diag_range[self.current_score as usize].0) as usize] {
+                            if let AlignmentLayer::Inserts = direction {
+                                curr_layer = AlignmentLayer::Inserts;
+                                continue;
+                            }
+                            if let AlignmentLayer::Deletes = direction {
+                                curr_layer = AlignmentLayer::Deletes;
+                                continue;
+                            }
+                            
+                            let mut current_char = score;
+                            curr_score -= self.pens.mismatch_pen;
+                            while current_char > self.matches[curr_score as usize][(curr_diag - self.diag_range[self.current_score as usize].0) as usize].unwrap().0 {
+                                    query_aligned.push(self.q_chars[(current_char + curr_diag - 1) as usize]);
+                                    text_aligned.push(self.t_chars[(current_char - 1) as usize]);
+                                    current_char -= 1;
+                            }
+                        }
+                },
+                    &mut AlignmentLayer::Inserts => {
+                            let current = self.inserts[curr_score as usize][(curr_diag - self.diag_range[self.current_score as usize].0) as usize].unwrap();
+                            query_aligned.push(self.q_chars[(current.0 + curr_diag - 1) as usize]);
+                            text_aligned.push('-');
+                            
+                            curr_score -= self.pens.extd_pen;
+                            
+                            curr_diag -= 1;
+                            if let AlignmentLayer::Matches = current.1 {
+                                curr_layer = AlignmentLayer::Matches;
+                                curr_score -= self.pens.open_pen;
+                            }
+                        },
+
+                    &mut AlignmentLayer::Deletes => {
+                        let current   = self.deletes[curr_score as usize][(curr_diag - self.diag_range[self.current_score as usize].0) as usize].unwrap();
+                        query_aligned.push('-');
+                        text_aligned.push(self.t_chars[(current.0 - 1) as usize]);
+
+                        curr_score -= self.pens.extd_pen;
+                        if let AlignmentLayer::Matches = current.1 {
+                                curr_layer = AlignmentLayer::Matches;
+                                curr_score -= self.pens.open_pen;
+                        }
+                        curr_diag += 1;
+                    },
+                }
+            }
+            if let AlignmentLayer::Matches = curr_layer {
+                if curr_score == 0 {
+                    let remaining = self.matches[0][0].unwrap().0 as usize;
+                    if remaining > 0 {
+                           query_aligned = query_aligned + &self.q_chars[..remaining].iter()
+                                                                                     .rev()
+                                                                                     .collect::<String>();
+                           text_aligned  = text_aligned + &self.t_chars[..remaining].iter()
+                                                                                    .rev()
+                                                                                    .collect::<String>();
+                    }
+                }
+            }
+
+            let q = query_aligned.chars().rev().collect();
+            let t = text_aligned.chars().rev().collect();
+
+            AlignResult::Res(Alignment {
+                score: self.current_score,
+                query_aligned: q,
+                text_aligned: t,
+                })
+            }
+
+
+        fn at(&self, layer: AlignmentLayer, score: i32, diag: i32) -> Option<(i32, AlignmentLayer)> {
+                    if score < 0 {
+                        return None;
+                    }
+                    if score >= self.current_score {
+                        return None;
+                    }
+                    if diag >= self.diag_range[score as usize].1 || diag < self.diag_range[score as usize].0 {
+                        return None;
+                    }
+                    match layer {
+                        AlignmentLayer::Matches => self.matches[score as usize][(diag - self.diag_range[score as usize].0) as usize].clone(),
+                        AlignmentLayer::Inserts => self.inserts[score as usize][(diag - self.diag_range[score as usize].0) as usize].clone(),
+                        AlignmentLayer::Deletes => self.deletes[score as usize][(diag - self.diag_range[score as usize].0) as usize].clone(),
+
+                    }
+            }
     }
-
-    fn wavefront_backtrace(
-        matches: &WavefrontVec,
-        inserts: &WavefrontVec,
-        deletes: &WavefrontVec,
-        q_chars: &Vec<char>,
-        t_chars: &Vec<char>,
-        score: i32,
-        final_diagonal: i32,
-        pens: &Penalties,
-    ) -> Result<Alignment, AlignError> {
-
-        let mut curr_score = score;
-        let mut curr_layer = AlignmentLayer::Matches;
-        let mut curr_diag = final_diagonal;
-
-        let mut query_aligned = String::new();
-        let mut text_aligned = String::new();
-
-        while curr_score > 0 {
-            match &mut curr_layer {
-                &mut AlignmentLayer::Matches => {
-                    match matches.at(curr_score, curr_diag) {
-                        None    => panic!(),
-                        Some(mut x) => {
-                            while x + curr_diag - 1 >= 0 &&
-                                  x - 1 >= 0 &&
-                                  q_chars[(x + curr_diag - 1) as usize] == t_chars[(x - 1) as usize] {
-                                query_aligned.push(q_chars[(x + curr_diag - 1) as usize]);
-                                text_aligned.push(t_chars[(x - 1) as usize]);
-                                x -= 1;
-                            }
-
-                            if let Some(y) = inserts.at(curr_score, curr_diag) {
-                                if x == y {
-                                  curr_layer = AlignmentLayer::Inserts;
-                                  continue;
-                                }
-                            }
-
-                            if let Some(y) = deletes.at(curr_score, curr_diag) {
-                                if x == y + 1 {
-                                  curr_layer = AlignmentLayer::Deletes;
-                                  continue;
-                                }
-                            }
-                        query_aligned.push(q_chars[(x + curr_diag - 1) as usize]);
-                        text_aligned.push(t_chars[(x - 1) as usize]);
-                        curr_score -= pens.mismatch_pen;
-                        }
-                    }
-                },
-                &mut AlignmentLayer::Inserts => {
-                    let current   = inserts.at(curr_score, curr_diag).unwrap();
-                    let from_open = matches.at(curr_score - pens.open_pen - pens.extd_pen, curr_diag - 1);
-                    query_aligned.push(q_chars[(current + curr_diag - 1) as usize]);
-                    text_aligned.push('-');
-
-                    if let Some(x) = from_open {
-                        if x == current {
-                            curr_layer = AlignmentLayer::Matches;
-                            curr_score -= pens.open_pen;
-                        }
-                    }
-
-                    curr_diag -= 1;
-                    curr_score -= pens.extd_pen;
-                },
-
-                &mut AlignmentLayer::Deletes => {
-                    let current   = deletes.at(curr_score, curr_diag).unwrap();
-                    let from_open = matches.at(curr_score - pens.open_pen - pens.extd_pen, curr_diag + 1);
-                    query_aligned.push('-');
-                    text_aligned.push(t_chars[(current - 1) as usize]);
-
-                    if let Some(x) = from_open {
-                        if 1 + x == current {
-                            curr_layer = AlignmentLayer::Matches;
-                            curr_score -= pens.open_pen;
-                        }
-                    }
-                    curr_diag += 1;
-                    curr_score -= pens.extd_pen;
-                },
-            }
-        }
-
-        if let AlignmentLayer::Matches = curr_layer {
-            if curr_score == 0 {
-                if matches.at(curr_score, 0).unwrap_or(0) > 0 {
-                   query_aligned = query_aligned + &q_chars[..matches.at(0, 0).unwrap() as usize].iter()
-                                                                                .rev()
-                                                                                .collect::<String>();
-                   text_aligned  = text_aligned + &t_chars[..matches.at(0, 0).unwrap() as usize].iter()
-                                                                                .rev()
-                                                                                .collect::<String>();
-                }
-            }
-        }
-
-        let q = query_aligned.chars().rev().collect();
-        let t = text_aligned.chars().rev().collect();
-
-        Ok(Alignment {
-            score,
-            query_aligned: q,
-            text_aligned: t,
-            })
-        }
-    }
-    fn add_wave(&mut self, width: usize) {
-                self.values
-                    .push(
-                        vec![None; width]
-                        );
-            }
-
-            fn at(&self, score: i32, diag: i32) -> Option<(i32, AlignmentLayer)> {
-                if score < 0 {
-                    return None;
-                }
-                if score >= self.values.len() as i32 {
-                    return None;
-                }
-                if diag >= self.diag_range.1 || diag < self.diag_range.0 {
-                    return None;
-                }
-                self.values[score as usize][(diag - self.diag_range.0) as usize]
-            }
-
-            fn set(&mut self, score: i32, diag: i32, value: i32) -> () {
-                if (score as usize) < self.values.len()
-                    && score >= 0
-                    && diag >= self.diag_range.0
-                    && diag < self.diag_range.1
-                {
-                    self.values[score as usize][(diag - self.diag_range.0) as usize] = Some(value);
-                }
-            }
-
-            fn increment(&mut self, score: i32, diag: i32) -> () {
-                if let Some(previous) = self.at(score, diag) {
-                    self.set(score, diag, previous + 1);
-                }
-            }
-
-            fn update_ins( &mut self,
-                           score: &i32,
-                           diag: &i32,
-                           matches: &WavefrontVec,
-                           pens: &Penalties        ) -> () {
-                match (&self.kind, &matches.kind) {
-                    (AlignmentLayer::Inserts, AlignmentLayer::Matches) => (),
-                    _ => panic!("update_ins called on two layers of incorrect type"),
-                }
-                match (
-                    matches.at(score - pens.open_pen - pens.extd_pen, diag - 1),
-                    self.at(score - pens.extd_pen, diag - 1)
-                    ) {
-                    (None,    None)    => (),
-                    (Some(x), None)    => self.set(*score, *diag, x),
-                    (None,    Some(x)) => self.set(*score, *diag, x),
-                    (Some(x), Some(y)) => self.set(*score, *diag, if x > y {x} else {y} ),
-                }
-            }
-
-            fn update_del( &mut self,
-                           score: &i32,
-                           diag: &i32,
-                           matches: &WavefrontVec,
-                           pens: &Penalties        ) -> () {
-                match (&self.kind, &matches.kind) {
-                    (AlignmentLayer::Deletes, AlignmentLayer::Matches) => (),
-                    _ => panic!("update_ins called on two layers of incorrect type"),
-                }
-                match (
-                    matches.at(score - pens.open_pen - pens.extd_pen, diag + 1),
-                    self.at(score - pens.extd_pen, diag + 1)
-                    ) {
-                    (None,    None)    => (),
-                    (Some(x), None)    => self.set(*score, *diag, 1 + x),
-                    (None,    Some(x)) => self.set(*score, *diag, 1 + x),
-                    (Some(x), Some(y)) => self.set(*score, *diag, 1 + if x > y {x} else {y} ),
-                }
-            }
-            fn update_mat(
-                &mut self,
-                score: &i32,
-                diag: &i32,
-                inserts: &WavefrontVec,
-                deletes: &WavefrontVec,
-                pens: &Penalties,
-            ) -> () {
-                match (&self.kind, &inserts.kind, &deletes.kind) {
-                    (AlignmentLayer::Matches, AlignmentLayer::Inserts, AlignmentLayer::Deletes) => (),
-                    _ => panic!("update_ins called on two layers of incorrect type"),
-                }
-                let largest = match (
-                    self.at(score-pens.mismatch_pen, *diag),
-                        inserts.at(*score, *diag),
-                        deletes.at(*score, *diag),
-                    ) {
-                    (None, None, None) => None,
-                    (Some(x), None, None) => Some(x + 1),
-                    (None, Some(x), None) => Some(x),
-                    (None, None, Some(x)) => Some(x),
-                    (Some(x), Some(y), None) => Some( if x + 1 > y { x + 1 } else { y } ),
-                    (Some(x), None, Some(y)) => Some( if x + 1 > y { x + 1 } else { y } ),
-                    (None, Some(x), Some(y)) => Some( if x > y { x } else { y } ),
-                    (Some(x), Some(y), Some(z)) => Some( if x + 1 > y { if x + 1 > z {x + 1} else {z} } else { if y > z {y} else {z}}), 
-                };
-                if let Some(x) = largest {
-                    self.set(*score, *diag, x);
-                }
-            }
-
 
     #[cfg(test)]
     mod tests {
@@ -458,12 +469,88 @@ pub mod wavefront {
                 diag_range: vec![(0, 1)],
                 num_diags: 6,
                 final_diagonal: -1,
+                highest_diag: 3,
+                lowest_diag: -4,
                 matches: vec![vec![None; 6]; 1],
                 deletes: Vec::new(),
                 inserts: Vec::new(),
             };
 
             assert_eq!(state, manual);
+        }
+
+        #[test]
+        fn test_wavefront_extend_match() -> () {
+            let mut wf = new_wavefront_state("ATAC", "ATACA", &Penalties {
+                mismatch_pen: 1,
+                open_pen: 1,
+                extd_pen: 1,
+            });
+            wf.extend();
+            assert_eq!(wf.matches[0][0], Some( (4, AlignmentLayer::Matches) ) );
+        }
+        #[test]
+        fn test_wavefront_extend_mismatch() -> () {
+            let mut wf = new_wavefront_state("ZZZZ", "ATACA", &Penalties {
+                mismatch_pen: 1,
+                open_pen: 1,
+                extd_pen: 1,
+            });
+            wf.extend();
+            assert_eq!(wf.matches[0][0], Some( (0, AlignmentLayer::Matches) ) );
+        }
+
+        #[test]
+        fn test_wavefront_increment_score() -> () {
+            let mut wf = new_wavefront_state("ZZZZ", "ATACA", &Penalties {
+                mismatch_pen: 1,
+                open_pen: 1,
+                extd_pen: 1,
+            });
+            assert_eq!(wf.current_score, 0);
+            wf.increment_score();
+            wf.increment_score();
+            assert_eq!(wf.current_score, 2);
+        }
+
+        #[test]
+        fn test_wavefront_increment() -> () {
+        let mut wf = new_wavefront_state("ZZZZ", "ATACA", &Penalties {
+                mismatch_pen: 1,
+                open_pen: 1,
+                extd_pen: 1,
+            });
+        assert_eq!(wf.matches[0][0], Some( (0, AlignmentLayer::Matches) ) ); 
+        wf.increment(0);
+        wf.increment(0);
+        assert_eq!(wf.matches[0][0], Some( (2, AlignmentLayer::Matches) ) ); 
+        }
+
+        #[test]
+        fn test_wavefront_is_finished() -> () {
+            let mut wf = new_wavefront_state("AAAA", "AAAA", &Penalties {
+                            mismatch_pen: 1,
+                            open_pen: 1,
+                            extd_pen: 1,
+                        });
+            assert!(!wf.is_finished());
+            wf.extend();
+            assert!(wf.is_finished());
+
+            let wf = new_wavefront_state("", "", &Penalties {
+                                mismatch_pen: 1,
+                                open_pen: 1,
+                                extd_pen: 1,
+                            });
+                assert!(wf.is_finished());
+         let mut wf = new_wavefront_state("AAAA", "AAAAT", &Penalties {
+                            mismatch_pen: 1,
+                            open_pen: 1,
+                            extd_pen: 1,
+                        });
+            assert!(!wf.is_finished());
+            wf.extend();
+            assert!(!wf.is_finished());
         }
     }
 }
