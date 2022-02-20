@@ -507,7 +507,6 @@ pub mod wavefront {
                         AlignmentLayer::Matches => self.matches[score as usize][(diag - self.lowest_diag) as usize].clone(),
                         AlignmentLayer::Inserts => self.inserts[score as usize][(diag - self.lowest_diag) as usize].clone(),
                         AlignmentLayer::Deletes => self.deletes[score as usize][(diag - self.lowest_diag) as usize].clone(),
-
                     }
             }
     }
@@ -685,23 +684,73 @@ pub mod wavefront {
             wf.extend();
             wf.increment_score();
             wf.next();
-            assert_eq!(wf.deletes[1], vec![None; 6]);
-            assert_eq!(wf.inserts[1], vec![None; 6]);
-
             let mut match_comp = vec![None; 6];
             match_comp.insert(3, Some( (4, AlignmentLayer::Matches) ) );
             match_comp.pop();
             assert_eq!(wf.matches[1], match_comp);
+            assert_eq!(wf.deletes[1], vec![None; 6]);
+            assert_eq!(wf.inserts[1], vec![None; 6]);
+
             wf.extend();
             wf.increment_score();
             wf.next();
-            assert_eq!(wf.matches[2], vec![None, None, Some( (4, AlignmentLayer::Deletes) ), None, None, None]); 
-            assert_eq!(wf.deletes[2], vec![None, None, Some( (4, AlignmentLayer::Matches) ), None, None, None]); 
+            assert_eq!(wf.matches[2], vec![None, None, Some( (4, AlignmentLayer::Deletes) ), Some( (5, AlignmentLayer::Matches) ), Some( (3, AlignmentLayer::Inserts) ), None]); 
         }
 
        #[test]
         fn test_wavefront_update_del() -> () {
-            // TODO
+            let mut wf = new_wavefront_state("CAT", "CATS", 
+                &Penalties{
+                    mismatch_pen: 1,
+                    extd_pen: 1,
+                    open_pen: 0,
+                }
+            );
+            wf.extend();
+            wf.increment_score();
+            wf.diag_range.push( (-1, 1) );
+            wf.deletes.push( vec![None; 6] );
+            for i in -1..=1 {
+                wf.update_del(i);
+            }
+            let should_be = vec![None, None, Some( (4, AlignmentLayer::Matches) ), None, None, None];
+            assert_eq!(wf.deletes[1], should_be);
+
+
+            let mut wf2 = new_wavefront_state("CAT", "CATUS", 
+                &Penalties{
+                    mismatch_pen: 1,
+                    extd_pen: 1,
+                    open_pen: 1,
+                }
+            );
+            wf2.extend();
+            wf2.increment_score();
+            wf2.diag_range.push( (-1, 1) );
+            wf2.deletes.push( vec![None; 7] );
+            for i in -1..=1 {
+                wf2.update_del(i);
+            }
+            assert_eq!(wf2.deletes[1], vec![None; 7]);
+
+            wf2.increment_score();
+            wf2.diag_range.push( (-1, 1) );
+            wf2.deletes.push( vec![None; 7] );
+            for i in -1..=1 {
+                wf2.update_del(i);
+            }
+            let should_be = vec![None, None, None, Some( (4, AlignmentLayer::Matches) ), None, None, None];
+            assert_eq!(wf2.deletes[2], should_be);
+
+            wf2.increment_score();
+            wf2.diag_range.push( (-2, 2) );
+            wf2.deletes.push( vec![None; 7] );
+            wf2.matches.push( vec![None; 7] );
+            for i in -2..=2 {
+                wf2.update_del(i);
+            }
+            let should_be = vec![None, None, Some( (5, AlignmentLayer::Deletes) ), None, None, None, None];
+            assert_eq!(wf2.deletes[3], should_be);
         }
 
        #[test]
@@ -717,6 +766,43 @@ pub mod wavefront {
        #[test]
         fn test_wavefront_backtrace() -> () {
             // TODO
+        }
+
+        #[test]
+        fn test_align_xx_yy() -> () {
+        // This case gave me a lot of trouble debugging, so I decided
+        // to give it its own test function, to test it thoroughly.
+        let mut wf = new_wavefront_state("XX", "YY", 
+                                        &Penalties{
+                                            mismatch_pen: 100,
+                                            open_pen: 1,
+                                            extd_pen: 1,
+                                            }
+                                         );
+        wf.extend();
+        assert_eq!(wf.matches[0], vec![None, Some( (0, AlignmentLayer::Matches) ), None]);
+        assert_eq!(wf.inserts[0], vec![None, None, None]);
+        assert_eq!(wf.deletes[0], vec![None, None, None]);
+
+        wf.increment_score();
+        wf.next();
+        assert_eq!(wf.matches[1], vec![None, None, None]);
+        assert_eq!(wf.inserts[1], vec![None, None, None]);
+        assert_eq!(wf.deletes[1], vec![None, None, None]);
+
+        wf.extend();
+        wf.increment_score();
+        wf.next();
+        assert_eq!(wf.matches[2], vec![Some( (1, AlignmentLayer::Deletes) ), None, Some( (0, AlignmentLayer::Inserts) )]);
+        assert_eq!(wf.inserts[2], vec![None, None, Some( (0, AlignmentLayer::Matches) )]);
+        assert_eq!(wf.deletes[2], vec![Some( (1, AlignmentLayer::Matches) ), None, None]);
+
+        wf.extend();
+        wf.increment_score();
+        wf.next();
+        assert_eq!(wf.matches[3], vec![Some( (2, AlignmentLayer::Deletes) ), None, Some( (0, AlignmentLayer::Inserts) )]);
+        assert_eq!(wf.inserts[3], vec![None, None, Some( (0, AlignmentLayer::Matches) )]);
+        assert_eq!(wf.deletes[3], vec![Some( (2, AlignmentLayer::Deletes) ), None, None]);
         }
 
        #[test]
