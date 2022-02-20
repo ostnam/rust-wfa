@@ -155,9 +155,9 @@ pub mod wavefront {
         let t_chars: Vec<char> = text.chars().collect();
 
         let final_diagonal = (q_chars.len() as i32) - (t_chars.len() as i32); // A_k in the article
-        let num_diags = (q_chars.len() + t_chars.len() - 1) as i32;
-        let highest_diag = q_chars.len() as i32 - 1;
-        let lowest_diag = (0 - t_chars.len() as i32) + 1;
+        let num_diags = (q_chars.len() + t_chars.len() + 1) as i32;
+        let highest_diag = q_chars.len() as i32;
+        let lowest_diag = 0 - t_chars.len() as i32;
 
         let mut matches = vec![vec![None; num_diags as usize]; 1];
         matches[0][(0 - lowest_diag) as usize] = Some( (0, AlignmentLayer::Matches) ); // Initialize the starting cell.
@@ -529,8 +529,8 @@ pub mod wavefront {
                 }
             );
             
-            let mut manual_matches = vec![vec![None; 8]; 1];
-            manual_matches[0][4] = Some( (0, AlignmentLayer::Matches) );
+            let mut manual_matches = vec![vec![None; 10]; 1];
+            manual_matches[0][5] = Some( (0, AlignmentLayer::Matches) );
             let manual = WavefrontState {
                 query: "GATA",
                 text:  "TAGAC",
@@ -543,13 +543,13 @@ pub mod wavefront {
                 t_chars: "TAGAC".chars().collect(),
                 current_score: 0,
                 diag_range: vec![(0, 0)],
-                num_diags: 8,
+                num_diags: 10,
                 final_diagonal: -1,
-                highest_diag: 3,
-                lowest_diag: -4,
+                highest_diag: 4,
+                lowest_diag: -5,
                 matches: manual_matches,
-                deletes: vec![vec![None; 8]; 1],
-                inserts: vec![vec![None; 8]; 1],
+                deletes: vec![vec![None; 10]; 1],
+                inserts: vec![vec![None; 10]; 1],
             };
 
             assert_eq!(state, manual);
@@ -571,17 +571,17 @@ pub mod wavefront {
                 None
             ); // cell out of the range
 
-            wf.matches[0][4] = Some( (10, AlignmentLayer::Inserts) );
+            wf.matches[0][5] = Some( (10, AlignmentLayer::Inserts) );
             assert_eq!(wf.at(AlignmentLayer::Matches, 0, 0),
                 Some( (10, AlignmentLayer::Inserts) )
             ); // updated the initial cell
 
-            wf.matches[0][4] = None;
-            assert_eq!(wf.at(AlignmentLayer::Matches, 0, -4),
+            wf.matches[0][0] = None;
+            assert_eq!(wf.at(AlignmentLayer::Matches, 0, -5),
                 None
             ); // updated the initial cell to None
 
-            wf.matches[0][7] = Some( (-10, AlignmentLayer::Matches) );
+            wf.matches[0][8] = Some( (-10, AlignmentLayer::Matches) );
             assert_eq!(wf.at(AlignmentLayer::Matches, 0, 3),
                 None
             );
@@ -597,7 +597,7 @@ pub mod wavefront {
             assert_eq!(wf.at(AlignmentLayer::Matches, 0, -4),
                 None
             );
-            wf.matches[0][0] = Some( (-100, AlignmentLayer::Matches) );
+            wf.matches[0][1] = Some( (-100, AlignmentLayer::Matches) );
             assert_eq!(wf.at(AlignmentLayer::Matches, 0, -4),
                 Some( (-100, AlignmentLayer::Matches) )
             );
@@ -611,7 +611,7 @@ pub mod wavefront {
                 extd_pen: 1,
             });
             wf.extend();
-            assert_eq!(wf.matches[0][4], Some( (4, AlignmentLayer::Matches) ) );
+            assert_eq!(wf.matches[0][5], Some( (4, AlignmentLayer::Matches) ) );
         }
 
         #[test]
@@ -622,7 +622,7 @@ pub mod wavefront {
                 extd_pen: 1,
             });
             wf.extend();
-            assert_eq!(wf.matches[0][3], Some( (0, AlignmentLayer::Matches) ) );
+            assert_eq!(wf.matches[0][4], Some( (0, AlignmentLayer::Matches) ) );
         }
 
         #[test]
@@ -645,10 +645,10 @@ pub mod wavefront {
                     open_pen: 1,
                     extd_pen: 1,
                 });
-            assert_eq!(wf.matches[0][5], Some( (0, AlignmentLayer::Matches) ) ); 
+            assert_eq!(wf.matches[0][6], Some( (0, AlignmentLayer::Matches) ) ); 
             wf.increment(0);
             wf.increment(0);
-            assert_eq!(wf.matches[0][5], Some( (2, AlignmentLayer::Matches) ) ); 
+            assert_eq!(wf.matches[0][6], Some( (2, AlignmentLayer::Matches) ) ); 
         }
 
         #[test]
@@ -684,17 +684,17 @@ pub mod wavefront {
             wf.extend();
             wf.increment_score();
             wf.next();
-            let mut match_comp = vec![None; 6];
-            match_comp.insert(3, Some( (4, AlignmentLayer::Matches) ) );
+            let mut match_comp = vec![None; 8];
+            match_comp.insert(4, Some( (4, AlignmentLayer::Matches) ) );
             match_comp.pop();
             assert_eq!(wf.matches[1], match_comp);
-            assert_eq!(wf.deletes[1], vec![None; 6]);
-            assert_eq!(wf.inserts[1], vec![None; 6]);
+            assert_eq!(wf.deletes[1], vec![None; 8]);
+            assert_eq!(wf.inserts[1], vec![None; 8]);
 
             wf.extend();
             wf.increment_score();
             wf.next();
-            assert_eq!(wf.matches[2], vec![None, None, Some( (4, AlignmentLayer::Deletes) ), Some( (5, AlignmentLayer::Matches) ), Some( (3, AlignmentLayer::Inserts) ), None]); 
+            assert_eq!(wf.matches[2], vec![None, None, None, Some( (4, AlignmentLayer::Deletes) ), Some( (5, AlignmentLayer::Matches) ), Some( (3, AlignmentLayer::Inserts) ), None, None]); 
         }
 
        #[test]
@@ -709,11 +709,11 @@ pub mod wavefront {
             wf.extend();
             wf.increment_score();
             wf.diag_range.push( (-1, 1) );
-            wf.deletes.push( vec![None; 6] );
+            wf.deletes.push( vec![None; 8] );
             for i in -1..=1 {
                 wf.update_del(i);
             }
-            let should_be = vec![None, None, Some( (4, AlignmentLayer::Matches) ), None, None, None];
+            let should_be = vec![None, None, None, Some( (4, AlignmentLayer::Matches) ), None, None, None, None];
             assert_eq!(wf.deletes[1], should_be);
 
 
@@ -727,29 +727,29 @@ pub mod wavefront {
             wf2.extend();
             wf2.increment_score();
             wf2.diag_range.push( (-1, 1) );
-            wf2.deletes.push( vec![None; 7] );
+            wf2.deletes.push( vec![None; 9] );
             for i in -1..=1 {
                 wf2.update_del(i);
             }
-            assert_eq!(wf2.deletes[1], vec![None; 7]);
+            assert_eq!(wf2.deletes[1], vec![None; 9]);
 
             wf2.increment_score();
             wf2.diag_range.push( (-1, 1) );
-            wf2.deletes.push( vec![None; 7] );
+            wf2.deletes.push( vec![None; 9] );
             for i in -1..=1 {
                 wf2.update_del(i);
             }
-            let should_be = vec![None, None, None, Some( (4, AlignmentLayer::Matches) ), None, None, None];
+            let should_be = vec![None, None, None, None, Some( (4, AlignmentLayer::Matches) ), None, None, None, None];
             assert_eq!(wf2.deletes[2], should_be);
 
             wf2.increment_score();
             wf2.diag_range.push( (-2, 2) );
-            wf2.deletes.push( vec![None; 7] );
-            wf2.matches.push( vec![None; 7] );
+            wf2.deletes.push( vec![None; 9] );
+            wf2.matches.push( vec![None; 9] );
             for i in -2..=2 {
                 wf2.update_del(i);
             }
-            let should_be = vec![None, None, Some( (5, AlignmentLayer::Deletes) ), None, None, None, None];
+            let should_be = vec![None, None, None, Some( (5, AlignmentLayer::Deletes) ), None, None, None, None, None];
             assert_eq!(wf2.deletes[3], should_be);
         }
 
@@ -772,37 +772,60 @@ pub mod wavefront {
         fn test_align_xx_yy() -> () {
         // This case gave me a lot of trouble debugging, so I decided
         // to give it its own test function, to test it thoroughly.
-        let mut wf = new_wavefront_state("XX", "YY", 
-                                        &Penalties{
-                                            mismatch_pen: 100,
-                                            open_pen: 1,
-                                            extd_pen: 1,
-                                            }
-                                         );
-        wf.extend();
-        assert_eq!(wf.matches[0], vec![None, Some( (0, AlignmentLayer::Matches) ), None]);
-        assert_eq!(wf.inserts[0], vec![None, None, None]);
-        assert_eq!(wf.deletes[0], vec![None, None, None]);
+            let mut wf = new_wavefront_state("XX", "YY", 
+                                            &Penalties{
+                                                mismatch_pen: 100,
+                                                open_pen: 1,
+                                                extd_pen: 1,
+                                                }
+                                             );
+            wf.extend();
+            assert_eq!(wf.matches[0], vec![None, None, Some( (0, AlignmentLayer::Matches) ), None, None]);
+            assert_eq!(wf.inserts[0], vec![None, None, None, None, None]);
+            assert_eq!(wf.deletes[0], vec![None, None, None, None, None]);
 
-        wf.increment_score();
-        wf.next();
-        assert_eq!(wf.matches[1], vec![None, None, None]);
-        assert_eq!(wf.inserts[1], vec![None, None, None]);
-        assert_eq!(wf.deletes[1], vec![None, None, None]);
+            wf.increment_score();
+            wf.next();
+            assert_eq!(wf.matches[1], vec![None, None, None, None, None]);
+            assert_eq!(wf.inserts[1], vec![None, None, None, None, None]);
+            assert_eq!(wf.deletes[1], vec![None, None, None, None, None]);
 
-        wf.extend();
-        wf.increment_score();
-        wf.next();
-        assert_eq!(wf.matches[2], vec![Some( (1, AlignmentLayer::Deletes) ), None, Some( (0, AlignmentLayer::Inserts) )]);
-        assert_eq!(wf.inserts[2], vec![None, None, Some( (0, AlignmentLayer::Matches) )]);
-        assert_eq!(wf.deletes[2], vec![Some( (1, AlignmentLayer::Matches) ), None, None]);
+            wf.extend();
+            wf.increment_score();
+            wf.next();
+            assert_eq!(wf.matches[2], vec![None, Some( (1, AlignmentLayer::Deletes) ), None, Some( (0, AlignmentLayer::Inserts) ), None]);
+            assert_eq!(wf.inserts[2], vec![None, None, None, Some( (0, AlignmentLayer::Matches) ), None]);
+            assert_eq!(wf.deletes[2], vec![None, Some( (1, AlignmentLayer::Matches) ), None, None, None]);
 
-        wf.extend();
-        wf.increment_score();
-        wf.next();
-        assert_eq!(wf.matches[3], vec![Some( (2, AlignmentLayer::Deletes) ), None, Some( (0, AlignmentLayer::Inserts) )]);
-        assert_eq!(wf.inserts[3], vec![None, None, Some( (0, AlignmentLayer::Matches) )]);
-        assert_eq!(wf.deletes[3], vec![Some( (2, AlignmentLayer::Deletes) ), None, None]);
+            wf.extend();
+            wf.increment_score();
+            wf.next();
+            assert_eq!(wf.matches[3], vec![Some( (2, AlignmentLayer::Deletes) ), None, None, None, Some( (0, AlignmentLayer::Inserts) )]);
+            assert_eq!(wf.inserts[3], vec![None, None, None, None, Some( (0, AlignmentLayer::Inserts) ) ]);
+            assert_eq!(wf.deletes[3], vec![Some( (2, AlignmentLayer::Deletes) ), None , None, None, None]);
+
+            wf.extend();
+            wf.increment_score();
+            wf.next();
+            assert_eq!(wf.matches[4], vec![Some( (2, AlignmentLayer::Deletes) ), None, Some( (1, AlignmentLayer::Deletes) ), None, Some( (0, AlignmentLayer::Inserts) )]);
+            assert_eq!(wf.inserts[4], vec![None, None, Some( (1, AlignmentLayer::Matches) ), None, Some( (0, AlignmentLayer::Matches) ) ]);
+            assert_eq!(wf.deletes[4], vec![Some( (2, AlignmentLayer::Matches) ), None , Some( (1, AlignmentLayer::Matches) ), None, None]);
+
+            wf.extend();
+            wf.increment_score();
+            wf.next();
+            assert_eq!(wf.matches[5], vec![None, Some( (2, AlignmentLayer::Deletes) ), None, Some( (1, AlignmentLayer::Deletes) ), None]);
+            assert_eq!(wf.inserts[5], vec![None, Some( (2, AlignmentLayer::Matches) ), None, Some( (1, AlignmentLayer::Inserts) ), None]);
+            assert_eq!(wf.deletes[5], vec![None, Some( (2, AlignmentLayer::Deletes) ), None, Some( (1, AlignmentLayer::Matches) ), None]);
+
+            assert!(!wf.is_finished());
+            wf.extend();
+            wf.increment_score();
+            wf.next();
+            assert_eq!(wf.matches[6], vec![Some( (3, AlignmentLayer::Deletes) ), Some( (2, AlignmentLayer::Deletes) ), Some( (2, AlignmentLayer::Deletes) ), Some( (1, AlignmentLayer::Deletes) ), Some( (1, AlignmentLayer::Inserts) )]);
+            assert_eq!(wf.inserts[6], vec![None, Some( (2, AlignmentLayer::Matches) ), Some( (2, AlignmentLayer::Inserts) ), Some( (1, AlignmentLayer::Matches) ), Some( (1, AlignmentLayer::Inserts) ) ]);
+            assert_eq!(wf.deletes[6], vec![Some( (3, AlignmentLayer::Deletes) ), Some( (2, AlignmentLayer::Matches) ), Some( (2, AlignmentLayer::Deletes) ), Some( (1, AlignmentLayer::Matches) ), None]);
+            assert!(wf.is_finished());
         }
 
        #[test]
@@ -853,24 +876,62 @@ pub mod wavefront {
                            open_pen: 1,
                        }),
                        AlignResult::Res(Alignment {
-                           query_aligned: "--XX".to_string(),
-                           text_aligned: "YY--".to_string(),
+                           query_aligned: "XX--".to_string(),
+                           text_aligned: "--YY".to_string(),
                            score: 6,
                        }
                    )
            );
-        assert_eq!(wavefront_align("XXZZ", "XXYZ",
+           assert_eq!(wavefront_align("XX", "YYYYYYYY",
                        &Penalties {
                            mismatch_pen: 100,
                            extd_pen: 1,
                            open_pen: 1,
                        }),
                        AlignResult::Res(Alignment {
-                           query_aligned: "XXZ-Z".to_string(),
-                           text_aligned:  "XX-YZ".to_string(),
-                           score: 4,
+                           query_aligned: "XX--------".to_string(),
+                           text_aligned: "--YYYYYYYY".to_string(),
+                           score: 12,
                        }
                    )
-           );}
+           );
+            assert_eq!(wavefront_align("XXZZ", "XXYZ",
+                           &Penalties {
+                               mismatch_pen: 100,
+                               extd_pen: 1,
+                               open_pen: 1,
+                           }),
+                           AlignResult::Res(Alignment {
+                               query_aligned: "XX-ZZ".to_string(),
+                               text_aligned:  "XXYZ-".to_string(),
+                               score: 4,
+                           }
+                       )
+               );
+        }
+
+        #[test]
+        fn assert_align_score() {
+            assert_eq!(match wavefront_align("TCTTTACTCGCGCGTTGGAGAAATACAATAGT", "TCTATACTGCGCGTTTGGAGAAATAAAATAGT",
+                           &Penalties {
+                               mismatch_pen: 1,
+                               extd_pen: 1,
+                               open_pen: 1,
+                           }) {
+                            AlignResult::Res(s) => s.score,
+                            _ => -1,
+                       }
+                        , 6);
+        assert_eq!(match wavefront_align("TCTTTACTCGCGCGTTGGAGAAATACAATAGT", "TCTATACTGCGCGTTTGGAGAAATAAAATAGT",
+                           &Penalties {
+                               mismatch_pen: 135,
+                               extd_pen: 19,
+                               open_pen: 82,
+                           }) {
+                            AlignResult::Res(s) => s.score,
+                            _ => -1,
+                       }
+                        , 472);
+}
     }
 }
