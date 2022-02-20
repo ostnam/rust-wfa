@@ -13,8 +13,8 @@ fn main() {
     
     let pens = Penalties {
         mismatch_pen: 1,
-        open_pen:  3,
-        extd_pen:  2,
+        open_pen:  1,
+        extd_pen:  1,
     };
 
     match wavefront_align(&query, &text, &pens) {
