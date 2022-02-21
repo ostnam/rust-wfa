@@ -1,6 +1,12 @@
-/// This module defines all the types and functions used in the crate.
+pub mod reference;
+pub mod alignment_lib;
+
+/// This module defines:
+/// * the types used for alignments
+/// * the functions used for wavefront alignments
 pub mod wavefront {
     use std::cmp::{min, max};
+    use super::alignment_lib::*;
 
     /// This function is exported and can be called to perform an alignment.
     /// The query cannot be longer than the text.
@@ -65,50 +71,6 @@ pub mod wavefront {
         }
         current_front.backtrace()
     }
-
-
-    /// Holds penalties scores.
-    /// There is no match penalty: matches do not change the score.
-    /// The penalty for any gap is length * extd_pen + open_pen. The extension pen is also applied
-    /// when a gap is opened.
-    /// Penalties should be a positive int.
-    #[derive(Debug, PartialEq, Eq)]
-    pub struct Penalties {
-        pub mismatch_pen: i32,
-        pub open_pen: i32,
-        pub extd_pen: i32,
-    }
-
-    /// Returned by every alignment function.
-    /// The aligned strings have '-' at gaps.
-    #[derive(Debug, Eq, PartialEq)]
-    pub struct Alignment {
-        pub score: i32,
-        pub query_aligned: String,
-        pub text_aligned: String,
-    }
-
-    /// Error type, for alignment errors.
-    #[derive(Debug, Eq, PartialEq)]
-    pub enum AlignError {
-        ZeroLength(String),
-        QueryTooLong(String),
-    }
-
-    #[derive(Debug, PartialEq, Eq)]
-    pub enum AlignResult {
-        Res(Alignment),
-        Error(AlignError)
-    }
-
-    /// Alignment layers. Used for tracking back.
-    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-    enum AlignmentLayer {
-        Matches,
-        Inserts,
-        Deletes,
-    }
-
     /// Main struct, implementing the algorithm.
     #[derive(Debug, PartialEq, Eq)]
     struct WavefrontState<'a> {
@@ -932,6 +894,6 @@ pub mod wavefront {
                             _ => -1,
                        }
                         , 472);
-}
+        }
     }
 }
