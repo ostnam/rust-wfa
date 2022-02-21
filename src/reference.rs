@@ -37,7 +37,7 @@ fn affine_gap_mat(a: &str, b: &str, pens: &Penalties) -> AlignMat {
 
             result.deletes[i][j] = if max(
                  result.deletes[i][j - 1].0 - pens.extd_pen,
-                 result.matches[i][j - 1].0 - pens.open_pen - pens.open_pen,
+                 result.matches[i][j - 1].0 - pens.extd_pen - pens.open_pen,
             ) == result.deletes[i][j - 1].0 - pens.extd_pen
             {
                 (result.deletes[i][j - 1].0 - pens.extd_pen, Some(AlignmentLayer::Deletes))
@@ -45,18 +45,22 @@ fn affine_gap_mat(a: &str, b: &str, pens: &Penalties) -> AlignMat {
                 (result.matches[i][j - 1].0 - pens.open_pen - pens.extd_pen, Some(AlignmentLayer::Matches))
             };
 
-            let mismatch = if chars_a[i - 1] == chars_b[j - 1] { 0 } else {0 - pens.mismatch_pen };
+            let mismatch = if chars_a[i - 1] == chars_b[j - 1] {
+                0 
+            } else {
+                pens.mismatch_pen 
+            };
+
             result.matches[i][j] = if max3(
                  result.matches[i - 1][j - 1].0 - mismatch,
                  result.deletes[i][j].0,
                  result.inserts[i][j].0,
-            ) == result.matches[i - 1][j - 1].0
-                + if chars_a[i - 1] == chars_b[j - 1] { 0 } else {0 - pens.mismatch_pen } {
+            ) == result.matches[i - 1][j - 1].0 - mismatch {
                 (
                     result.matches[i - 1][j - 1].0 - mismatch,
                     Some(AlignmentLayer::Matches),
                 )
-            } else if result.deletes[i][j].0 > result.inserts[i][j].0 {
+            } else if result.deletes[i][j].0 >= result.inserts[i][j].0 {
                 (result.deletes[i][j].0, Some(AlignmentLayer::Deletes))
             } else {
                 (result.inserts[i][j].0, Some(AlignmentLayer::Inserts))
@@ -93,7 +97,7 @@ fn trace_back(mat: &AlignMat, a: &str, b: &str) -> alignment_lib::AlignResult {
     let mut layer = AlignmentLayer::Matches;
     result.score = 0 - mat.matches[a_pos][b_pos].0;
 
-    while a_pos > 0 && b_pos > 0 {
+    while (a_pos > 0) || (b_pos > 0) {
         if a_pos == 0 {
             b_pos -= 1;
             result.query_aligned.push('-');
