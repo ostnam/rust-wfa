@@ -1,16 +1,16 @@
-use std::cmp::max;
+use std::cmp::min;
 
 pub use crate::alignment_lib::{self, Penalties, AlignmentLayer};
 
-fn max3<T: Ord>(a: T, b: T, c: T) -> T {
-    max(a, max(b, c))
+fn min3<T: Ord>(a: T, b: T, c: T) -> T {
+    min(a, min(b, c))
 }
 
 #[derive(Debug)]
 struct AlignMat {
-    inserts: Vec<Vec<(i32, Option<alignment_lib::AlignmentLayer>)>>,
-    matches: Vec<Vec<(i32, Option<alignment_lib::AlignmentLayer>)>>,
-    deletes: Vec<Vec<(i32, Option<alignment_lib::AlignmentLayer>)>>,
+    inserts: Vec<Vec<(Option<i32>, Option<alignment_lib::AlignmentLayer>)>>,
+    matches: Vec<Vec<(Option<i32>, Option<alignment_lib::AlignmentLayer>)>>,
+    deletes: Vec<Vec<(Option<i32>, Option<alignment_lib::AlignmentLayer>)>>,
 }
 
 pub fn affine_gap_align(a: &str, b: &str, pens: &alignment_lib::Penalties) -> alignment_lib::AlignResult {
@@ -19,30 +19,38 @@ pub fn affine_gap_align(a: &str, b: &str, pens: &alignment_lib::Penalties) -> al
 }
 
 fn affine_gap_mat(a: &str, b: &str, pens: &Penalties) -> AlignMat {
-    let mut result = new_mat(a, b);
+    let mut result = new_mat(a, b, pens);
     let chars_a: Vec<char> = a.chars().collect();
     let chars_b: Vec<char> = b.chars().collect();
-
     for i in 1..chars_a.len() + 1 {
         for j in 1..chars_b.len() + 1 {
-            result.inserts[i][j] = if max(
-                 result.inserts[i - 1][j].0 - pens.extd_pen,
-                 result.matches[i - 1][j].0 - pens.extd_pen - pens.open_pen,
-            ) == result.inserts[i - 1][j].0 - pens.extd_pen
-            {
-                (result.inserts[i - 1][j].0 - pens.extd_pen, Some(AlignmentLayer::Inserts))
-            } else {
-                (result.matches[i - 1][j].0 - pens.open_pen - pens.extd_pen, Some(AlignmentLayer::Matches))
+
+            result.inserts[i][j] = match (result.inserts[i-1][j].0, result.matches[i-1][j].0) {
+                (Some(a), Some(b)) => if min(a + pens.extd_pen,
+                                            b + pens.extd_pen + pens.open_pen,
+                                           ) == a + pens.extd_pen 
+                    {
+                        (Some(a + pens.extd_pen), Some(AlignmentLayer::Inserts))
+                    } else {
+                        (Some(b + pens.extd_pen + pens.open_pen), Some(AlignmentLayer::Matches))
+                    },
+                (Some(a), None) => (Some(a + pens.extd_pen), Some(AlignmentLayer::Inserts)),
+                (None, Some(a)) => (Some(a + pens.extd_pen + pens.open_pen), Some(AlignmentLayer::Matches)),
+                (None, None)    => (None, None),
             };
 
-            result.deletes[i][j] = if max(
-                 result.deletes[i][j - 1].0 - pens.extd_pen,
-                 result.matches[i][j - 1].0 - pens.extd_pen - pens.open_pen,
-            ) == result.deletes[i][j - 1].0 - pens.extd_pen
-            {
-                (result.deletes[i][j - 1].0 - pens.extd_pen, Some(AlignmentLayer::Deletes))
-            } else {
-                (result.matches[i][j - 1].0 - pens.open_pen - pens.extd_pen, Some(AlignmentLayer::Matches))
+            result.deletes[i][j] = match (result.deletes[i][j-1].0, result.matches[i][j-1].0) {
+                (Some(a), Some(b)) => if min(a + pens.extd_pen,
+                                             b + pens.extd_pen + pens.open_pen,
+                                           ) == a + pens.extd_pen 
+                    {
+                        (Some(a + pens.extd_pen), Some(AlignmentLayer::Deletes))
+                    } else {
+                        (Some(b + pens.extd_pen + pens.open_pen), Some(AlignmentLayer::Matches))
+                    },
+                (Some(a), None) => (Some(a + pens.extd_pen), Some(AlignmentLayer::Deletes)),
+                (None, Some(a)) => (Some(a + pens.extd_pen + pens.open_pen), Some(AlignmentLayer::Matches)),
+                (None, None)    => (None, None),
             };
 
             let mismatch = if chars_a[i - 1] == chars_b[j - 1] {
@@ -51,33 +59,73 @@ fn affine_gap_mat(a: &str, b: &str, pens: &Penalties) -> AlignMat {
                 pens.mismatch_pen 
             };
 
-            result.matches[i][j] = if max3(
-                 result.matches[i - 1][j - 1].0 - mismatch,
+            result.matches[i][j] = match ( 
+                 result.matches[i - 1][j - 1].0, 
                  result.deletes[i][j].0,
-                 result.inserts[i][j].0,
-            ) == result.matches[i - 1][j - 1].0 - mismatch {
-                (
-                    result.matches[i - 1][j - 1].0 - mismatch,
-                    Some(AlignmentLayer::Matches),
-                )
-            } else if result.deletes[i][j].0 >= result.inserts[i][j].0 {
-                (result.deletes[i][j].0, Some(AlignmentLayer::Deletes))
-            } else {
-                (result.inserts[i][j].0, Some(AlignmentLayer::Inserts))
+                 result.inserts[i][j].0) {
+                (Some(a), Some(b), Some(c)) => if a + mismatch < b {
+                                                    if a + mismatch < c {
+                                                        (Some(a+mismatch), Some(AlignmentLayer::Matches))
+                                                    } else {
+                                                    (Some(c), Some(AlignmentLayer::Inserts))
+                                                    }
+                                                } else {
+                                                    (Some(b), Some(AlignmentLayer::Deletes))
+                                                },
+                    (Some(a), Some(b), None) => if a + mismatch < b {
+                                                        (Some(a+mismatch), Some(AlignmentLayer::Matches))
+                                                } else {
+                                                        (Some(b), Some(AlignmentLayer::Deletes))
+                                                },
+                    (Some(a), None, Some(c)) => if a + mismatch < c {
+                                                        (Some(a+mismatch), Some(AlignmentLayer::Matches))
+                                                } else {
+                                                        (Some(c), Some(AlignmentLayer::Inserts))
+                                                },
+                    (None, Some(b), Some(c)) => if b < c {
+                                                        (Some(b), Some(AlignmentLayer::Deletes))
+                                                } else {
+                                                        (Some(c), Some(AlignmentLayer::Inserts))
+                                                },
+                    (Some(a), None, None) => (Some(a+mismatch), Some(AlignmentLayer::Matches)),
+                    (None, Some(b), None) => (Some(b), Some(AlignmentLayer::Deletes)),
+                    (None, None, Some(c)) => (Some(c), Some(AlignmentLayer::Inserts)),
+                    (None, None, None) => (None, None),
             };
         }
     }
     result
 }
 
-fn new_mat(a: &str, b: &str) -> AlignMat {
+fn new_mat(a: &str, b: &str, pens: &Penalties) -> AlignMat {
     let a_length = a.len() + 1;
     let b_length = b.len() + 1;
 
+    let mut inserts = vec![vec![(None, None); b_length]; a_length];
+    let mut matches = vec![vec![(None, None); b_length]; a_length];
+    let mut deletes = vec![vec![(None, None); b_length]; a_length];
+
+    matches[0][0] = (Some(0), None);
+
+    inserts[1][0] = (Some(pens.extd_pen + pens.open_pen), Some(AlignmentLayer::Matches));
+    matches[1][0] = inserts[1][0];
+    for i in 2..a_length {
+       inserts[i][0] = (Some(inserts[i-1][0].0.unwrap() + pens.extd_pen), Some(AlignmentLayer::Inserts));
+       matches[i][0] = inserts[i][0];
+    };
+
+    deletes[0][1] = (Some(pens.extd_pen + pens.open_pen), Some(AlignmentLayer::Matches));
+    matches[0][1] = deletes[0][1];
+    for i in 2..b_length {
+        deletes[0][i] = (Some(deletes[0][i-1].0.unwrap() + pens.extd_pen), Some(AlignmentLayer::Deletes));
+        matches[0][i] = deletes[0][i];
+    };
+
+
     AlignMat {
-        inserts: vec![vec![(0, None); b_length]; a_length],
-        matches: vec![vec![(0, None); b_length]; a_length],
-        deletes: vec![vec![(0, None); b_length]; a_length],
+        inserts, 
+        matches,
+        deletes,
     }
 }
 
@@ -95,7 +143,7 @@ fn trace_back(mat: &AlignMat, a: &str, b: &str) -> alignment_lib::AlignResult {
     let b_chars: Vec<char> = b.chars().collect();
 
     let mut layer = AlignmentLayer::Matches;
-    result.score = 0 - mat.matches[a_pos][b_pos].0;
+    result.score = mat.matches[a_pos][b_pos].0.unwrap();
 
     while (a_pos > 0) || (b_pos > 0) {
         if a_pos == 0 {
@@ -150,6 +198,19 @@ fn trace_back(mat: &AlignMat, a: &str, b: &str) -> alignment_lib::AlignResult {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /* #[test]
+    fn test_xx_yy() {
+        let am = affine_gap_mat("XX", "YY", &Penalties {
+                                            mismatch_pen: 100,
+                                            open_pen: 1,
+                                            extd_pen: 1,
+                                            }
+        );
+        
+        let inserts_vec: Vec<Vec<(i32, Option<alignment_lib::AlignmentLayer>)>> = vec![vec![ (0, None); 3 ]; 3];
+        assert_eq!(am.inserts, inserts_vec);
+    } */
 
     #[test]
     fn assert_align_score() {
