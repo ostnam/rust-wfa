@@ -2,10 +2,6 @@ use std::cmp::min;
 
 pub use crate::alignment_lib::{self, Penalties, AlignmentLayer};
 
-fn min3<T: Ord>(a: T, b: T, c: T) -> T {
-    min(a, min(b, c))
-}
-
 #[derive(Debug)]
 struct AlignMat {
     inserts: Vec<Vec<(Option<i32>, Option<alignment_lib::AlignmentLayer>)>>,
@@ -36,7 +32,7 @@ fn affine_gap_mat(a: &str, b: &str, pens: &Penalties) -> AlignMat {
                     },
                 (Some(a), None) => (Some(a + pens.extd_pen), Some(AlignmentLayer::Inserts)),
                 (None, Some(a)) => (Some(a + pens.extd_pen + pens.open_pen), Some(AlignmentLayer::Matches)),
-                (None, None)    => (None, None),
+                (None, None)    => panic!("(None, None), results.inserts"),
             };
 
             result.deletes[i][j] = match (result.deletes[i][j-1].0, result.matches[i][j-1].0) {
@@ -50,7 +46,7 @@ fn affine_gap_mat(a: &str, b: &str, pens: &Penalties) -> AlignMat {
                     },
                 (Some(a), None) => (Some(a + pens.extd_pen), Some(AlignmentLayer::Deletes)),
                 (None, Some(a)) => (Some(a + pens.extd_pen + pens.open_pen), Some(AlignmentLayer::Matches)),
-                (None, None)    => (None, None),
+                (None, None)    => panic!("(None, None), results.deletes"),
             };
 
             let mismatch = if chars_a[i - 1] == chars_b[j - 1] {
@@ -67,10 +63,14 @@ fn affine_gap_mat(a: &str, b: &str, pens: &Penalties) -> AlignMat {
                                                     if a + mismatch < c {
                                                         (Some(a+mismatch), Some(AlignmentLayer::Matches))
                                                     } else {
-                                                    (Some(c), Some(AlignmentLayer::Inserts))
+                                                        (Some(c), Some(AlignmentLayer::Inserts))
                                                     }
                                                 } else {
-                                                    (Some(b), Some(AlignmentLayer::Deletes))
+                                                    if b <= c {
+                                                        (Some(b), Some(AlignmentLayer::Deletes))
+                                                    } else {
+                                                        (Some(c), Some(AlignmentLayer::Inserts))
+                                                    }
                                                 },
                     (Some(a), Some(b), None) => if a + mismatch < b {
                                                         (Some(a+mismatch), Some(AlignmentLayer::Matches))
@@ -90,7 +90,7 @@ fn affine_gap_mat(a: &str, b: &str, pens: &Penalties) -> AlignMat {
                     (Some(a), None, None) => (Some(a+mismatch), Some(AlignmentLayer::Matches)),
                     (None, Some(b), None) => (Some(b), Some(AlignmentLayer::Deletes)),
                     (None, None, Some(c)) => (Some(c), Some(AlignmentLayer::Inserts)),
-                    (None, None, None) => (None, None),
+                    (None, None, None) => panic!("(None, None, None), result.matches"),
             };
         }
     }
@@ -197,20 +197,8 @@ fn trace_back(mat: &AlignMat, a: &str, b: &str) -> alignment_lib::AlignResult {
 
 #[cfg(test)]
 mod tests {
+    use crate::alignment_lib::AlignResult;
     use super::*;
-
-    /* #[test]
-    fn test_xx_yy() {
-        let am = affine_gap_mat("XX", "YY", &Penalties {
-                                            mismatch_pen: 100,
-                                            open_pen: 1,
-                                            extd_pen: 1,
-                                            }
-        );
-        
-        let inserts_vec: Vec<Vec<(i32, Option<alignment_lib::AlignmentLayer>)>> = vec![vec![ (0, None); 3 ]; 3];
-        assert_eq!(am.inserts, inserts_vec);
-    } */
 
     #[test]
     fn assert_align_score() {
@@ -291,6 +279,28 @@ mod tests {
                            score: 4,
                        }
                    )
-           );
+       );
+    assert_eq!(match affine_gap_align("TCTTTACTCGCGCGTTGGAGAAATACAATAGT", "TCTATACTGCGCGTTTGGAGAAATAAAATAGT",
+                       &Penalties {
+                           mismatch_pen: 1,
+                           extd_pen: 1,
+                           open_pen: 1,
+                       }) {
+                        AlignResult::Res(s) => s.score,
+                        _ => -1,
+                   }
+                    , 6
+    );
+
+    assert_eq!(match affine_gap_align("TCTTTACTCGCGCGTTGGAGAAATACAATAGT", "TCTATACTGCGCGTTTGGAGAAATAAAATAGT",
+                       &Penalties {
+                           mismatch_pen: 135,
+                           extd_pen: 19,
+                           open_pen: 82,
+                       }) {
+                        AlignResult::Res(s) => s.score,
+                        _ => -1,
+                   }
+                    , 472);
     }
 }

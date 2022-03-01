@@ -880,15 +880,16 @@ mod tests {
                         _ => -1,
                    }
                     , 6);
-    assert_eq!(match wavefront_align("TCTTTACTCGCGCGTTGGAGAAATACAATAGT", "TCTATACTGCGCGTTTGGAGAAATAAAATAGT",
-                       &Penalties {
-                           mismatch_pen: 135,
-                           extd_pen: 19,
-                           open_pen: 82,
-                       }) {
-                        AlignResult::Res(s) => s.score,
-                        _ => -1,
-                   }
-                    , 472);
+     
+        assert_eq!(match wavefront_align("TCTTTACTCGCGCGTTGGAGAAATACAATAGT", "TCTATACTGCGCGTTTGGAGAAATAAAATAGT",
+                           &Penalties {
+                               mismatch_pen: 135,
+                               extd_pen: 19,
+                               open_pen: 82,
+                           }) {
+                            AlignResult::Res(s) => s.score,
+                            _ => -1,
+                       }
+                        , 472);
     }
 }
