@@ -1,9 +1,10 @@
-use crate::alignment_lib::{self, Penalties};
+use crate::alignment_lib::*;
 use crate::reference::affine_gap_align;
 use crate::wavefront_alignment::wavefront_align;
 use rand::{thread_rng, Rng};
 use rand::distributions::{Alphanumeric, Standard, Distribution};
 
+#[derive(Clone, Copy, Debug)]
 pub enum AlignmentType {
     WavefrontNaive,
     WavefrontNaiveAdaptive,
@@ -75,7 +76,37 @@ fn mutate(text: &str, min_error: i32, max_error: i32) -> String {
     mutated.into_iter().collect()
 }
 
-pub fn compare_alignment(a_type: &AlignmentType, b_type: &AlignmentType, min_length: usize, max_length: usize, min_error: i32, max_error: i32) -> (alignment_lib::AlignResult, alignment_lib::AlignResult) {
+pub enum ValidationResult {
+    Passed,
+    Failed(ValidationFailureType)
+}
+
+#[derive(Debug)]
+pub enum ValidationFailureType {
+    ScoreMismatch(ScoreMismatch),
+    AlignResultMismatch(AlignResultMismatch),
+}
+
+#[derive(Debug)]
+pub struct ScoreMismatch {
+    query: String,
+    text: String,
+    a_score: i32,
+    b_score: i32,
+    query_aligned_a: String,
+    text_aligned_a: String,
+    query_aligned_b: String,
+    text_aligned_b: String,
+    pens: Penalties,
+}
+
+#[derive(Debug)]
+pub struct AlignResultMismatch {
+    failed_type: AlignmentType,
+    failed: AlignError,
+}
+
+pub fn compare_alignment(a_type: &AlignmentType, b_type: &AlignmentType, min_length: usize, max_length: usize, min_error: i32, max_error: i32) -> ValidationResult {
     // generate 2 strings
     let mut text = random_string(min_length, max_length);
     let mut query = mutate(&text, min_error, max_error);
@@ -87,14 +118,14 @@ pub fn compare_alignment(a_type: &AlignmentType, b_type: &AlignmentType, min_len
     let mut rng = thread_rng();
 
     let pens = Penalties {
-        mismatch_pen: rng.gen_range(0..100),
-        open_pen: rng.gen_range(0..100),
-        extd_pen: rng.gen_range(0..100),
+        mismatch_pen: rng.gen_range(1..100),
+        open_pen: rng.gen_range(1..100),
+        extd_pen: rng.gen_range(1..100),
     };
     
     
     // align them using the method
-    match (a_type, b_type) {
+    let (a_result, b_result) = match (a_type, b_type) {
         (AlignmentType::WavefrontNaive, AlignmentType::WavefrontNaive) => todo!(),
         (AlignmentType::WavefrontNaive, AlignmentType::WavefrontNaiveAdaptive) => todo!(),
         (AlignmentType::WavefrontNaive, AlignmentType::Reference) => (wavefront_align(&query, &text, &pens), affine_gap_align(&query, &text, &pens)),
@@ -104,5 +135,44 @@ pub fn compare_alignment(a_type: &AlignmentType, b_type: &AlignmentType, min_len
         (AlignmentType::Reference, AlignmentType::WavefrontNaive) => todo!(),
         (AlignmentType::Reference, AlignmentType::WavefrontNaiveAdaptive) => todo!(),
         (AlignmentType::Reference, AlignmentType::Reference) => todo!(),
+    };
+
+    match (a_result, b_result) {
+        (AlignResult::Res(a), AlignResult::Res(b)) => if a.score == b.score {
+            ValidationResult::Passed
+        } else {
+            ValidationResult::Failed(
+                ValidationFailureType::ScoreMismatch(
+                    ScoreMismatch {
+                        query,
+                        text,
+                        a_score: a.score,
+                        b_score: b.score,
+                        query_aligned_a: a.query_aligned,
+                        text_aligned_a: a.text_aligned,
+                        query_aligned_b: b.query_aligned,
+                        text_aligned_b: b.text_aligned,
+                        pens,
+                    }
+                )
+            )
+        },
+        (AlignResult::Error(_), AlignResult::Error(_)) => ValidationResult::Passed,
+        (AlignResult::Error(a), AlignResult::Res(_)) => ValidationResult::Failed(
+            ValidationFailureType::AlignResultMismatch(
+                AlignResultMismatch {
+                    failed_type: *b_type,
+                    failed: a,
+                }
+            )
+        ),
+        (AlignResult::Res(_), AlignResult::Error(a)) => ValidationResult::Failed(
+            ValidationFailureType::AlignResultMismatch(
+                AlignResultMismatch {
+                    failed_type: *a_type,
+                    failed: a,
+                }
+            )
+        ),
     }
 }
