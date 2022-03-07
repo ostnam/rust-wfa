@@ -14,18 +14,21 @@ fn main() {
         threads.push(
             thread::spawn(move || {
                 loop {
-                    new_tx.send(
+                    match new_tx.send(
                         compare_alignment(&AlignmentType::WavefrontNaive,
                                             &AlignmentType::Reference,
                                             2,
-                                            5,
+                                            7,
                                             0,
-                                            50,)
-                    ).unwrap();
+                                            50)
+                        ) {
+                            Ok(_) => (),
+                            Err(_) => break,
+                    }
                 }
             }
             )
-         )
+        )
         }
 
     for cycle in 0..=u64::MAX {
