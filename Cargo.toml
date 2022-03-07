@@ -1,9 +1,18 @@
 [package]
-name = "rust-wfa"
+name = "rust_wfa"
 version = "0.1.0"
 edition = "2021"
 license = "MIT"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[lib]
+name = "lib"
+path = "src/lib.rs"
+
+[[bin]]
+name = "validate"
+path = "src/validate.rs"
+
 [dependencies]
+rand = "0.8.5"

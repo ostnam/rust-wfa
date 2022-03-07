@@ -10,16 +10,16 @@ fn main() {
     query = query.trim().to_string();
     text = text.trim().to_string();
     
-    let pens = rust_wfa::alignment_lib::Penalties {
+    let pens = lib::alignment_lib::Penalties {
         mismatch_pen: 1,
         open_pen:  1,
         extd_pen:  1,
     };
 
-    match rust_wfa::wavefront_alignment::wavefront_align(&query, &text, &pens) {
-        rust_wfa::alignment_lib::AlignResult::Res(alignment) => 
+    match lib::wavefront_alignment::wavefront_align(&query, &text, &pens) {
+        lib::alignment_lib::AlignResult::Res(alignment) => 
             print!("{}\n{}\n{}\n", alignment.score, alignment.query_aligned, alignment.text_aligned),
-        rust_wfa::alignment_lib::AlignResult::Error(e) => 
+        lib::alignment_lib::AlignResult::Error(e) => 
             panic!("Alignment returned an error: {:?}", e),
     };
 }
