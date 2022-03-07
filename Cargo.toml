@@ -14,5 +14,10 @@ path = "src/lib.rs"
 name = "validate"
 path = "src/validate.rs"
 
+[[bin]]
+name = "validate_concurrent"
+path = "src/validate_concurrent.rs"
+
 [dependencies]
 rand = "0.8.5"
+num_cpus = "1.13.1"
