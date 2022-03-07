@@ -18,7 +18,7 @@ fn main() {
                         compare_alignment(&AlignmentType::WavefrontNaive,
                                             &AlignmentType::Reference,
                                             2,
-                                            7,
+                                            1000,
                                             0,
                                             50)
                         ) {

@@ -386,7 +386,7 @@ impl WavefrontState<'_> {
                         };
 
                     if let AlignmentLayer::Matches = from {
-                        let previous = self.matches[(curr_score - self.pens.extd_pen - self.pens.open_pen) as usize][(curr_diag - self.diag_range[self.current_score as usize].0 - 1) as usize].unwrap();
+                        let previous = self.matches[(curr_score - self.pens.extd_pen - self.pens.open_pen) as usize][(curr_diag - self.lowest_diag - 1) as usize].unwrap();
                         query_aligned.push(self.q_chars[(previous.0 + curr_diag - 1) as usize]);
                         text_aligned.push('-');
                         curr_diag -= 1;
@@ -394,7 +394,7 @@ impl WavefrontState<'_> {
                         curr_layer = AlignmentLayer::Matches;
                     }
                     if let AlignmentLayer::Inserts = from {
-                        let previous = self.inserts[(curr_score - self.pens.extd_pen) as usize][(curr_diag - self.diag_range[self.current_score as usize].0 - 1) as usize].unwrap();
+                        let previous = self.inserts[(curr_score - self.pens.extd_pen) as usize][(curr_diag - self.lowest_diag - 1) as usize].unwrap();
                         query_aligned.push(self.q_chars[(previous.0 + curr_diag - 1) as usize]);
                         text_aligned.push('-');
                         curr_diag -= 1;
@@ -403,7 +403,7 @@ impl WavefrontState<'_> {
                 },
                 &mut AlignmentLayer::Deletes => {
                     let (_, from) =
-                        match self.deletes[curr_score as usize][(curr_diag - self.diag_range[self.current_score as usize].0) as usize] {
+                        match self.deletes[curr_score as usize][(curr_diag - self.lowest_diag) as usize] {
                             Some(x) => x,
                             _ => panic!(),
                         };
@@ -417,7 +417,7 @@ impl WavefrontState<'_> {
                         curr_layer = AlignmentLayer::Matches;
                     }
                     if let AlignmentLayer::Deletes = from {
-                        let previous = self.deletes[(curr_score - self.pens.extd_pen) as usize][(curr_diag - self.diag_range[self.current_score as usize].0 + 1) as usize].unwrap();
+                        let previous = self.deletes[(curr_score - self.pens.extd_pen) as usize][(curr_diag - self.lowest_diag + 1) as usize].unwrap();
                         query_aligned.push('-');
                         text_aligned.push(self.t_chars[(previous.0) as usize]);
                         curr_diag += 1;
@@ -802,36 +802,22 @@ mod tests {
 
         wf.increment_score();
         wf.next();
-        wf.extend();
         assert_eq!(wf.matches[1], vec![None, None, None, None, None]);
         assert_eq!(wf.inserts[1], vec![None, None, None, None, None]);
         assert_eq!(wf.deletes[1], vec![None, None, None, None, None]);
+        wf.extend();
 
         wf.increment_score();
         wf.next();
-        wf.extend();
         assert_eq!(wf.matches[2], vec![None, None, None, None, None]);
         assert_eq!(wf.inserts[2], vec![None, None, None, None, None]);
         assert_eq!(wf.deletes[2], vec![None, None, None, None, None]);
+        wf.extend();
 
     }
     #[test]
     fn test_align_avd() -> () {
-       assert_eq!(wavefront_align("ViidIM", "AViidI",
-                           &Penalties {
-                               mismatch_pen: 61,
-                               extd_pen: 6,
-                               open_pen: 55,
-                           }),
-                           AlignResult::Res(Alignment {
-                               query_aligned: "-ViidIM".to_string(),
-                               text_aligned: "AViidI-".to_string(),
-                               score: 122,
-                           }
-                       )
-               );
-
-       assert_eq!(wavefront_align("AV", "VM",
+              assert_eq!(wavefront_align("AV", "VM",
                            &Penalties {
                                mismatch_pen: 3,
                                extd_pen: 1,
