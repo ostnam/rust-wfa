@@ -4,6 +4,10 @@ version = "0.1.0"
 edition = "2021"
 license = "MIT"
 
+[profile.release]
+debug = true
+
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [lib]
@@ -17,6 +21,10 @@ path = "src/validate.rs"
 [[bin]]
 name = "validate_concurrent"
 path = "src/validate_concurrent.rs"
+
+[[bin]]
+name = "bench_manual"
+path = "src/bench_manual.rs"
 
 [dependencies]
 rand = "0.8.5"
