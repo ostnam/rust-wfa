@@ -1,10 +1,13 @@
+use core::fmt;
+use std::fmt::Debug;
+use strum_macros::EnumString;
 use crate::alignment_lib::*;
 use crate::reference::affine_gap_align;
 use crate::wavefront_alignment::wavefront_align;
 use rand::{thread_rng, Rng};
 use rand::distributions::{Alphanumeric, Standard, Distribution};
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, EnumString)]
 pub enum AlignmentType {
     WavefrontNaive,
     WavefrontNaiveAdaptive,
@@ -87,7 +90,6 @@ pub enum ValidationFailureType {
     AlignResultMismatch(AlignResultMismatch),
 }
 
-#[derive(Debug)]
 pub struct ScoreMismatch {
     query: String,
     text: String,
@@ -98,6 +100,12 @@ pub struct ScoreMismatch {
     query_aligned_b: String,
     text_aligned_b: String,
     pens: Penalties,
+}
+
+impl Debug for ScoreMismatch {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Error comparing the alignment of {} with {}. The first method finds a score of {} while the second gives {}. \n First alignment: {}\n{}\nSecond alignment:{}\n{}\nPenalties:{:?}", self.query, self.text, self.a_score, self.b_score, self.query_aligned_a, self.text_aligned_a, self.query_aligned_b, self.text_aligned_b, self.pens)
+    }
 }
 
 #[derive(Debug)]

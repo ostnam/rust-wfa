@@ -19,10 +19,6 @@ name = "validate"
 path = "src/validate.rs"
 
 [[bin]]
-name = "validate_concurrent"
-path = "src/validate_concurrent.rs"
-
-[[bin]]
 name = "bench_manual"
 path = "src/bench_manual.rs"
 
@@ -30,3 +26,5 @@ path = "src/bench_manual.rs"
 rand = "0.8.5"
 num_cpus = "1.13.1"
 clap =  { version = "3.1.6", features = ["derive"] }
+strum = "0.24"
+strum_macros = "0.24"
