@@ -10,9 +10,9 @@ The reference implementation of the algorithm, written in C by the authors of th
 
 ## Wavefronts explained
 ### Wavefronts basics
-My explanation assumes that the reader is familiar with the [Smith-Waterman-Gotoh sequence alignment algorithm.](https://en.wikipedia.org/wiki/Smith%E2%80%93Waterman_algorithm) and its gap-affine version.
+This explanation assumes that the reader is familiar with the [Smith-Waterman-Gotoh sequence alignment algorithm,](https://en.wikipedia.org/wiki/Smith%E2%80%93Waterman_algorithm) and its gap-affine version.
 
-The wavefront alignment algorithm computes the optimal alignment between a pair of strings *Query* and *Text* using 2-dimensional matrices: *Insert<sub>i, j</sub>*, *Matches<sub>i, j</sub>* and *Deletes<sub>i, j</sub>*.
+The wavefront alignment algorithm computes the optimal alignment between a pair of strings *Query* and *Text* using three 2-dimensional matrices: *Insert<sub>i, j</sub>*, *Matches<sub>i, j</sub>* and *Deletes<sub>i, j</sub>*.
 
 Unlike SWG alignment, *i* and *j* do **not** correspond to a position in *Query* or *Text*.
 
@@ -28,11 +28,11 @@ Unlike SWG alignment, *i* and *j* do **not** correspond to a position in *Query*
 | C  | -3 | -2 | -1 | 0 |
 
 The value that is stored in each of the wavefront matrices cell is the **number of characters of** ***Text*** that can be aligned, for the score *i*, at the diagonal *j*.
-The number of characters of **Query** that are aligned, for a number of characters of **Text** aligned n and a diagonal d is equal to n + d. 
+The number of characters of **Query** that are aligned, for a number of characters of **Text** aligned n and a diagonal d is equal to n + d. For instance, for the alignment of "CAT" and "CAC" *Matches<sub>i, j</sub> = 2*, since on diagonal 0, if the matching penalty/bonus is set to 0, we can match up to 2 characters ("CA").
 
 We'll define insertions as aligning an extra character in *Query* (moving horizontally in the alignment matrix) and deletions as the opposite *Text* (moving vertically in the alignment matrix).
 
-At a high-level, the wavefront alignment algorithm can be defined as such (with pens being a struct that holds the mismatch/gap penalties):
+At a high-level, the wavefront alignment algorithm can be defined as such (with ``pens`` being a struct that holds the mismatch/gap penalties):
 
 ```rust
     let mut current_front = new_wavefront_state(query, text, pens);
@@ -51,7 +51,7 @@ One key aspect of wavefront alignment is that the matching penalty is set to 0.
 Recall the definition of the value stored in each matrix: 
 > The value that is stored in each of the matrices cell is the **number of characters of** ***Text*** that can be aligned, for the score *i*, at the diagonal *j*.
 
-For a given position the score can be extended as long as the character of *Text* and *Query*, in the diagonal of the SWG matrix match. We can thus obtain the wavefront extension funciton:
+For a given position the score can be extended as long as the character of *Text* and *Query*, in the diagonal of the SWG matrix match. We can thus obtain the wavefront extension function:
 ```rust
 for diag in current_diagonals {
 	let mut x = matches[current_score][diag];
@@ -68,9 +68,9 @@ Smith-Waterman-Gotoh defines the following recurrence relation to build the alig
 
 * *Deletes<sub>i, j</sub> = min( Deletes<sub>i - 1, j</sub> + gap extension penalty, Matches<sub>i - 1, j</sub> + gap extension penalty + gap opening penalty )*
 * *Inserts<sub>i, j</sub> = min( Inserts<sub>i, j - 1 </sub> + gap extension penalty, Matches<sub>i, j - 1 </sub> + gap extension penalty + gap opening penalty )*
-* *Matches<sub>i, j</sub> = min( Matches<sub>i, j</sub> + the penalty of matching/mismatching Text<sub>i</sub> to Query<sub>j</sub>, Inserts<sub>i, j</sub>, Deletes<sub>i, j</sub>)*
+* *Matches<sub>i, j</sub> = min( Matches<sub>i, j</sub> + the penalty of matching/mismatching Text<sub>i</sub> to Query<sub>j</sub>, Inserts<sub>i, j</sub>, Deletes<sub>i, j</sub> )*
 
-These relations are the same for wa
+These relations are the same for WFA.
 * For the *Deletes* matrix, the number of chars that can be matched at a score i and a diagonal j is the maximum of *Deletes<sub> i - gap extension penalty, j + 1 </sub>* and *Matches<sub>i - gap extension penalty - gap opening penalty, j + 1 </sub>* + 1. We add 1 due to the definition of the values stored in each cell.
 * It's the same from the *Inserts* matrix, except that the values will come from the diagonal j - 1 (since insertions are a rightward movement in the SWG matrix). This time, we don't add 1 because the number stored in each cell is the number of characters of *Text* matched, and insertions are an extra character in *Query*.
 * Matches is the maximum of *Deletes<sub>i, j</sub>*, *Inserts<sub>i, j</sub>* and *Matches<sub>i - mismatch pen, j</sub>*.
@@ -110,7 +110,7 @@ OPTIONS:
     -p, --parallel                   
     -V, --version  
 ```
-That program generates random strings of a length in the interval specified by the user and a second version that differs by the error rate (in percent) interval given. It then aligns the 2 strings using both the WFA and SWG algorithm, and checks that their score is the same (the alignment itself is not compared since there can be multiple alignment for an optimal alignment score).
+That program generates random strings of a length in the interval specified by the user and a second, mutated version of that string that differs by the error rate (in percent) interval given. It then aligns the 2 strings using both the WFA and SWG algorithm, and checks that their score is the same (the alignment itself is not compared since there can be multiple alignment for an optimal alignment score).
 It can also run in parallel, doing this process concurrently, with a different text/query pair of strings over each detected cpu core.
 
 After using this executable to fix the remaining bugs in my algorithm, I have now been able to compare the alignments of hundred thousands of strings without a difference in the alignment score between both algorithms, which has convinced me of the soundness of my implementation.
