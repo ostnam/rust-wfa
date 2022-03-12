@@ -1088,17 +1088,17 @@ mod tests {
 
         assert_eq!(
             wavefront_align(
-                "AV",
-                "VM",
+                "AVD",
+                "VDM",
                 &Penalties {
-                    mismatch_pen: 5,
+                    mismatch_pen: 2,
                     extd_pen: 1,
                     open_pen: 1,
                 }
             ),
             AlignResult::Res(Alignment {
-                query_aligned: "AV-".to_string(),
-                text_aligned: "-VM".to_string(),
+                query_aligned: "AVD-".to_string(),
+                text_aligned: "-VDM".to_string(),
                 score: 4,
             })
         );

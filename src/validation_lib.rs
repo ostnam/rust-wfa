@@ -1,4 +1,4 @@
-use crate::alignment_lib::*;
+use crate::{alignment_lib::*, reference};
 use crate::reference::affine_gap_align;
 use crate::wavefront_alignment::wavefront_align;
 use core::fmt;
@@ -80,6 +80,33 @@ fn mutate(text: &str, min_error: i32, max_error: i32) -> String {
         }
     }
     mutated.into_iter().collect()
+}
+
+fn compute_score_from_alignment(alignment: &Alignment, pens: &Penalties) -> i32 {
+    let mut computed_score: i32 = 0;
+    let mut current_layer: AlignmentLayer = AlignmentLayer::Matches;
+    for (c1, c2) in alignment.query_aligned.chars().zip(
+        alignment.text_aligned.chars()) {
+        if c1 == '-' {
+            computed_score += pens.extd_pen + match current_layer {
+                AlignmentLayer::Deletes => 0,
+                _ => pens.open_pen,
+            };
+            current_layer = AlignmentLayer::Deletes;
+        } else if c2 == '-' {
+            computed_score += pens.extd_pen + match current_layer {
+                AlignmentLayer::Inserts => 0,
+                _ => pens.open_pen,
+           };
+           current_layer = AlignmentLayer::Inserts;
+        } else { 
+            current_layer = AlignmentLayer::Matches;
+            if c1 != c2 {
+                computed_score += pens.mismatch_pen;
+            }
+        }
+    }
+    computed_score
 }
 
 pub enum ValidationResult {
@@ -188,5 +215,39 @@ pub fn compare_alignment(
                 failed: a,
             }),
         ),
+    }
+}
+pub fn validate_sma(
+    a_type: &AlignmentType,
+    min_length: usize,
+    max_length: usize,
+    min_error: i32,
+    max_error: i32,
+) -> (i32, Alignment, Penalties) {
+    // generate 2 strings
+    let mut text = random_string(min_length, max_length);
+    let mut query = mutate(&text, min_error, max_error);
+    if query.len() > text.len() {
+        std::mem::swap(&mut query, &mut text);
+    }
+
+    // generate pens
+    let mut rng = thread_rng();
+
+    let pens = Penalties {
+        mismatch_pen: rng.gen_range(1..100),
+        open_pen: rng.gen_range(1..100),
+        extd_pen: rng.gen_range(1..100),
+    };
+
+    // align them using the method
+    let a_result = match a_type {
+        AlignmentType::WavefrontNaive => wavefront_align(&query, &text, &pens),
+        AlignmentType::Reference => reference::affine_gap_align(&query, &text, &pens),
+        _ => todo!(),
+    };
+    match a_result {
+        AlignResult::Res(a) => (compute_score_from_alignment(&a, &pens), a, pens),
+        AlignResult::Error(_) => panic!(),
     }
 }
