@@ -91,7 +91,9 @@ while matches[current_score][current_diag] != score_at_the_originating_cell {
 
 ## Rust implementation
 
-## Validation
+### Validation of my implementation
+
+#### Verifying that the WFA algorithm gives the same score as SWG alignment.
 I have implemented a naive, unoptimized version of the SWG alignment in reference.rs.
 I have written validate.rs (a binary target that gets compiled to a standalone executable binary file).
 ```
@@ -115,4 +117,27 @@ It can also run in parallel, doing this process concurrently, with a different t
 
 After using this executable to fix the remaining bugs in my algorithm, I have now been able to compare the alignments of hundred thousands of strings without a difference in the alignment score between both algorithms, which has convinced me of the soundness of my implementation.
 
-## Benchmarks
+#### Verifying that the alignment and its score matches.
+In a similar manner, I wrote validate\_score\_matches\_alignment. This program gets compiled to a binary with the same name, that can be ran to generate pairs of strings, align them, and verify that the alignment matches its score: the score is recomputed from the alignment and then compared.
+
+```
+./target/release/validate_score_matches_alignment -h
+rust_wfa 0.1.0
+USAGE:
+    validate_score_matches_alignment [OPTIONS] --min-length <MIN_LENGTH> --max-length <MAX_LENGTH> --min-error <MIN_ERROR> --max-error <MAX_ERROR>
+
+OPTIONS:
+    -h, --help                       Print help information
+        --max-error <MAX_ERROR>      
+        --max-length <MAX_LENGTH>    
+        --min-error <MIN_ERROR>      
+        --min-length <MIN_LENGTH>    
+    -p, --parallel                   
+    -V, --version                    Print version information
+```
+
+
+This program allowed me to identify another bug (a single incorrect variable) that produced incorrect alignments, with a correct score (and thus weren't detected by the previous validation program).
+I can now validate thousands of alignments, without producing bugs.
+
+### Benchmarks
