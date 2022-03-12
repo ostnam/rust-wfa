@@ -1,8 +1,8 @@
-use std::io::{stdin, BufRead};
 use clap::Parser;
-use lib::{validation_lib::AlignmentType, wavefront_alignment, reference::affine_gap_align};
+use lib::{reference::affine_gap_align, validation_lib::AlignmentType, wavefront_alignment};
+use std::io::{stdin, BufRead};
 
-
+/// Struct used for parsing CLI args with clap.
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
 struct MainArgs {
@@ -28,23 +28,26 @@ fn main() {
 
     query = query.trim().to_string();
     text = text.trim().to_string();
-    
+
     let pens = lib::alignment_lib::Penalties {
         mismatch_pen: args.mismatch_pen,
-        open_pen:  args.open_pen,
-        extd_pen:  args.extd_pen,
+        open_pen: args.open_pen,
+        extd_pen: args.extd_pen,
     };
-    
+
     let alignment = match args.method {
         AlignmentType::WavefrontNaive => wavefront_alignment::wavefront_align(&query, &text, &pens),
-        AlignmentType::WavefrontNaiveAdaptive => wavefront_alignment::wavefront_align_adaptive(&query, &text, &pens),
-        AlignmentType::Reference => affine_gap_align(&query, &text, &pens)
+        AlignmentType::WavefrontNaiveAdaptive => {
+            wavefront_alignment::wavefront_align_adaptive(&query, &text, &pens)
+        }
+        AlignmentType::Reference => affine_gap_align(&query, &text, &pens),
     };
 
     match alignment {
-        lib::alignment_lib::AlignResult::Res(alignment) => 
-            print!("{}\n{}\n{}\n", alignment.score, alignment.query_aligned, alignment.text_aligned),
-        lib::alignment_lib::AlignResult::Error(e) => 
-            panic!("Alignment returned an error: {:?}", e),
+        lib::alignment_lib::AlignResult::Res(alignment) => print!(
+            "{}\n{}\n{}\n",
+            alignment.score, alignment.query_aligned, alignment.text_aligned
+        ),
+        lib::alignment_lib::AlignResult::Error(e) => panic!("Alignment returned an error: {:?}", e),
     };
 }

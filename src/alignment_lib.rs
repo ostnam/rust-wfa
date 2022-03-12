@@ -29,7 +29,7 @@ pub enum AlignError {
 #[derive(Debug, PartialEq, Eq)]
 pub enum AlignResult {
     Res(Alignment),
-    Error(AlignError)
+    Error(AlignError),
 }
 
 /// Alignment layers. Used for tracking back.
