@@ -62,6 +62,21 @@ pub fn wavefront_align_adaptive(query: &str, text: &str, pens: &Penalties) -> Al
     }
     current_front.backtrace()
 }
+
+// for debugging
+fn wavefront_align_no_bt<'a>(query: &'a str, text: &'a str, pens: &'a Penalties) -> WavefrontState<'a> {
+    let mut current_front = new_wavefront_state(query, text, pens);
+    loop {
+        current_front.extend();
+        if current_front.is_finished() {
+            break;
+        }
+        current_front.increment_score();
+        current_front.next();
+    }
+    current_front
+}
+
 /// Main struct, implementing the algorithm.
 #[derive(Debug, PartialEq, Eq)]
 struct WavefrontState<'a> {
@@ -372,7 +387,7 @@ impl WavefrontState<'_> {
                 if x.0 + 1 >= z.0 {
                     (x.0 + 1, AlignmentLayer::Matches)
                 } else {
-                    (z.0, AlignmentLayer::Inserts)
+                    (z.0, AlignmentLayer::Deletes)
                 }
             } else if y.0 > z.0 {
                     (y.0, AlignmentLayer::Inserts)
