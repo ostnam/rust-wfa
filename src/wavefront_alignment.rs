@@ -350,13 +350,13 @@ impl WavefrontState<'_> {
             (Some(x), None, None) => Some((x.0 + 1, AlignmentLayer::Matches)),
             (None, Some(x), None) => Some((x.0, AlignmentLayer::Inserts)),
             (None, None, Some(x)) => Some((x.0, AlignmentLayer::Deletes)),
-            (Some(x), Some(y), None) => Some(if x.0 + 1 > y.0 {
+            (Some(x), Some(y), None) => Some(if x.0 + 1 >= y.0 {
                 (x.0 + 1, AlignmentLayer::Matches)
             } else {
                 (y.0, AlignmentLayer::Inserts)
             }),
 
-            (Some(x), None, Some(y)) => Some(if x.0 + 1 > y.0 {
+            (Some(x), None, Some(y)) => Some(if x.0 + 1 >= y.0 {
                 (x.0 + 1, AlignmentLayer::Matches)
             } else {
                 (y.0, AlignmentLayer::Deletes)
@@ -368,8 +368,8 @@ impl WavefrontState<'_> {
                 (y.0, AlignmentLayer::Deletes)
             }),
 
-            (Some(x), Some(y), Some(z)) => Some(if x.0 + 1 > y.0 {
-                if x.0 + 1 > z.0 {
+            (Some(x), Some(y), Some(z)) => Some(if x.0 + 1 >= y.0 {
+                if x.0 + 1 >= z.0 {
                     (x.0 + 1, AlignmentLayer::Matches)
                 } else {
                     (z.0, AlignmentLayer::Inserts)
@@ -392,10 +392,12 @@ impl WavefrontState<'_> {
 
         while curr_score > 0 {
             match &mut curr_layer {
+                // If we're on a match
                 AlignmentLayer::Matches => {
                     if let Some((score, direction)) =
                         self.matches[curr_score as usize][(curr_diag - self.lowest_diag) as usize]
                     {
+                        // if that match came from the insert
                         if let AlignmentLayer::Inserts = direction {
                             curr_layer = AlignmentLayer::Inserts;
                             let mut current_char = score;
@@ -1106,15 +1108,15 @@ mod tests {
                 "AV",
                 "VM",
                 &Penalties {
-                    mismatch_pen: 61,
-                    extd_pen: 6,
-                    open_pen: 55,
+                    mismatch_pen: 2,
+                    extd_pen: 1,
+                    open_pen: 1,
                 }
             ),
             AlignResult::Res(Alignment {
-                query_aligned: "AV-".to_string(),
-                text_aligned: "-VM".to_string(),
-                score: 122,
+                query_aligned: "AV".to_string(),
+                text_aligned: "VM".to_string(),
+                score: 4,
             })
         );
     }
