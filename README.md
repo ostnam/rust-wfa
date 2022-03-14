@@ -6,7 +6,7 @@ This project is an implementation of the wavefront alignment algorithm. This alg
 I have pasted part of the abstract below:
 >In this article, we present the wavefront alignment algorithm (WFA), an exact gap-affine algorithm that takes advantage of homologous regions between the sequences to accelerate the alignment process. As opposed to traditional dynamic programming algorithms that run in quadratic time, the WFA runs in time O(ns), proportional to the read length n and the alignment score s, using O(s2) memory. Furthermore, our algorithm exhibits simple data dependencies that can be easily vectorized, even by the automatic features of modern compilers, for different architectures, without the need to adapt the code. We evaluate the performance of our algorithm, together with other state-of-the-art implementations. As a result, we demonstrate that the WFA runs 20–300× faster than other methods aligning short Illumina-like sequences, and 10–100× faster using long noisy reads like those produced by Oxford Nanopore Technologies."
 
-The reference implementation of the algorithm, written in C by the authors of the article, is available at [https://github.com/smarco/WFA](github.com/smarco/WFA).
+The reference implementation of the algorithm, written in C by the authors of the article, is available at [github.com/smarco/WFA2-lib](https://github.com/smarco/WFA2-lib).
 
 ## Wavefronts explained
 ### Wavefronts basics
