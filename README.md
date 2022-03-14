@@ -28,11 +28,13 @@ Unlike SWG alignment, *i* and *j* do **not** correspond to a position in *Query*
 | C  | -3 | -2 | -1 | 0 |
 
 The value that is stored in each of the wavefront matrices cell is the **number of characters of** ***Text*** that can be aligned, for the score *i*, at the diagonal *j*.
-The number of characters of **Query** that are aligned, for a number of characters of **Text** aligned n and a diagonal d is equal to n + d. For instance, for the alignment of "CAT" and "CAC" *Matches<sub>i, j</sub> = 2*, since on diagonal 0, if the matching penalty/bonus is set to 0, we can match up to 2 characters ("CA").
 
-We'll define insertions as aligning an extra character in *Query* (moving horizontally in the alignment matrix) and deletions as the opposite *Text* (moving vertically in the alignment matrix).
+If we align n character of **Text**, the number of characters of **Query** that are aligned is equal to n + the number of the current diagonal.
+For instance, for the alignment of "CAT" and "CAC" *Matches<sub>i, j</sub> = 2*, since on diagonal 0, if the matching penalty/bonus is set to 0, we can match up to 2 characters ("CA").
 
-At a high-level, the wavefront alignment algorithm can be defined as such (with ``pens`` being a struct that holds the mismatch/gap penalties):
+We'll define the direction of insertions as aligning an extra character in *Query* (moving horizontally in the alignment matrix) and deletions as the opposite *Text* (moving vertically in the alignment matrix).
+
+At the highest level, the wavefront alignment algorithm can be defined as such (with ``pens`` being a struct that holds the mismatch/gap penalties):
 
 ```rust
     let mut current_front = new_wavefront_state(query, text, pens);
@@ -70,8 +72,10 @@ Smith-Waterman-Gotoh defines the following recurrence relation to build the alig
 * *Inserts<sub>i, j</sub> = min( Inserts<sub>i, j - 1 </sub> + gap extension penalty, Matches<sub>i, j - 1 </sub> + gap extension penalty + gap opening penalty )*
 * *Matches<sub>i, j</sub> = min( Matches<sub>i, j</sub> + the penalty of matching/mismatching Text<sub>i</sub> to Query<sub>j</sub>, Inserts<sub>i, j</sub>, Deletes<sub>i, j</sub> )*
 
-These relations are the same for WFA.
-* For the *Deletes* matrix, the number of chars that can be matched at a score i and a diagonal j is the maximum of *Deletes<sub> i - gap extension penalty, j + 1 </sub>* and *Matches<sub>i - gap extension penalty - gap opening penalty, j + 1 </sub>* + 1. We add 1 due to the definition of the values stored in each cell.
+The WFA\_next function is based on these relations. The WFA\_extend function is equivalent to going down a diagonal of the DP matrix while *Text<sub>i</sub>== Query<sub>j</sub>*. Once a cell where this equation doens't hold is reached, WFA\_next is equivalent to computing the DP cells to the left and right of that cell.
+
+Rephrasing the SWG recurrence relations for wavefronts gives these relations:
+* For the *Deletes* matrix, the number of chars that can be matched at a score i and a diagonal j is the maximum of *Deletes<sub> i - gap extension penalty, j + 1 </sub>* and *Matches<sub>i - gap extension penalty - gap opening penalty, j + 1 </sub>* + 1. The '+ 1' is due to the definition of the values stored in each cell.
 * It's the same from the *Inserts* matrix, except that the values will come from the diagonal j - 1 (since insertions are a rightward movement in the SWG matrix). This time, we don't add 1 because the number stored in each cell is the number of characters of *Text* matched, and insertions are an extra character in *Query*.
 * Matches is the maximum of *Deletes<sub>i, j</sub>*, *Inserts<sub>i, j</sub>* and *Matches<sub>i - mismatch pen, j</sub>*.
 
@@ -81,13 +85,6 @@ At every cycle, we'll check if the number of characters matched at a diagonal is
 
 ### Backtracking wavefronts to build an alignment
 The backtracking algorithm isn't specified in the original article and I derived it myself since it's not very complicated. One important detail is not to forget that if we're on a match, we need to un-extend the wavefront.
-
-```rust
-while matches[current_score][current_diag] != score_at_the_originating_cell {
-	// push the matching char to query_aligned and text_aligned
-	matches[current_score][current_diag] -= 1;
-}
-```
 
 ## Rust implementation
 
