@@ -4,12 +4,6 @@ version = "0.1.0"
 edition = "2021"
 license = "MIT"
 
-[profile.release]
-debug = true
-
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [lib]
 name = "lib"
 path = "src/lib.rs"
@@ -26,9 +20,16 @@ path = "src/validate_score_matches_alignment.rs"
 name = "bench_manual"
 path = "src/bench_manual.rs"
 
+[[bench]]
+name = "bench_wfa"
+harness = false
+
 [dependencies]
 rand = "0.8.5"
 num_cpus = "1.13.1"
 clap =  { version = "3.1.6", features = ["derive"] }
 strum = "0.24"
 strum_macros = "0.24"
+
+[dev-dependencies]
+criterion = "0.3"
