@@ -141,8 +141,11 @@ I can now validate thousands of alignments, without producing bugs.
 
 I have ran benchmarks on my implementation of WFA, the reference implementation (WFA2) and efficient SWG alignment.
 The results are in the table below.
-|          | 100, d = 1% | 100, d = 10% | 100, d = 30% | 1k, d = 1% | 1k, d = 10% | 1k, d = 30% | 10k, d = 1% | 10k, d = 10% | 10k, d = 30% |
+n = length of the sequences, d = rate at which the elements differ between each sequence.
+|          | n = 100, d = 1% | n = 100, d = 10% | n = 100, d = 30% | n = 1k, d = 1% | n = 1k, d = 10% | n = 1k, d = 30% | n = 10k, d = 1% | n = 10k, d = 10% | n = 10k, d = 30% |
 |:--------:|:-----------:|:-----------:|:------------:|:----------:|:----------:|:------------:|:------------:|:------------:|:-------------:|
 | rust-wfa | 41 µs  | 131 µs | 291 µs |  1.77 ms  | 16 ms    |   33 ms |  202.6 ms | 1.59 s   | 3.3 s    |
 | WFA2     |  5 µs  |  25 µs |  53 µs |     42 µs |   665 µs |    2 ms |    1 ms   |    37 ms |   140 ms |
 | WFA2 SWG | 87 µs  |  90 µs |  95 µs | 11 ms     | 11 ms    |   11 ms | 1 s       | 1 s      | 1 s      |
+
+As expected, SWG alignment doesn't depend on the error rate. My naive implementation is much slower than the original implementation, and it is only faster than SWG alignment for highly similar sequences.
