@@ -152,7 +152,7 @@ As expected, SWG alignment doesn't depend on the error rate. My naive implementa
 This was an initial, naive implementation of the WFA algorithm. For instance, I stored the wavefronts as Vec<Vec<i32>>, which isn't very efficient.
 
 In the next version, I rewrote my implementation to use a more efficient 1D Vec<i32>.
-T|          | n = 100, d = 1% | n = 100, d = 10% | n = 100, d = 30% | n = 1k, d = 1% | n = 1k, d = 10% | n = 1k, d = 30% | n = 10k, d = 1% | n = 10k, d = 10% | n = 10k, d = 30% |
+|          | n = 100, d = 1% | n = 100, d = 10% | n = 100, d = 30% | n = 1k, d = 1% | n = 1k, d = 10% | n = 1k, d = 30% | n = 10k, d = 1% | n = 10k, d = 10% | n = 10k, d = 30% |
 |:--------:|:-----------:|:-----------:|:------------:|:----------:|:----------:|:------------:|:------------:|:------------:|:-------------:|
 | rust-wfa | 3.18 µs  | 12 µs | 36 µs |  31 µs  | 779 ms    |   3.4 ms |  1.3 ms | 89 ms   | 377 ms    |
 | WFA2     |  5 µs  |  25 µs |  53 µs |     42 µs |   665 µs |    2 ms |    1 ms   |    37 ms |   140 ms |
