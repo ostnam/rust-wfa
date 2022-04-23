@@ -8,7 +8,7 @@ use std::time::Instant;
 #[clap(author, version, about, long_about = None)]
 struct MainArgs {
     #[clap(short, long)]
-    method: AlignmentType,
+    algorithm: AlignmentType,
 
     #[clap(short, long)]
     mismatch_pen: i32,
@@ -45,10 +45,10 @@ fn main() {
         None
     };
 
-    let alignment = match args.method {
+    let alignment = match args.algorithm {
         AlignmentType::WavefrontNaive => wavefront_alignment::wavefront_align(&query, &text, &pens),
         AlignmentType::WavefrontNaiveAdaptive => {
-            wavefront_alignment::wavefront_align_adaptive(&query, &text, &pens)
+            panic!("WFA-adaptive not yet implemented.");
         }
         AlignmentType::Reference => affine_gap_align(&query, &text, &pens),
     };
