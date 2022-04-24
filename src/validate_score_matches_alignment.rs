@@ -52,13 +52,13 @@ fn run_validate_sma_concurrent(args: ValidateArgs) {
 
     for _ in 0..num_threads {
         let new_tx = tx.clone();
-        threads.push(thread::spawn(move || while let Ok(_) = new_tx.send(validate_sma(
+        threads.push(thread::spawn(move || while new_tx.send(validate_sma(
                 &AlignmentType::WavefrontNaive,
                 args.min_length,
                 args.max_length,
                 args.min_error,
                 args.max_error,
-            )) {}
+            )).is_ok() {}
         ));
     }
 

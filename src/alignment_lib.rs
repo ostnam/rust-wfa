@@ -69,11 +69,8 @@ pub struct WavefrontGrid {
 /// Make a new wavefront grid with the first diagonal of (lo, hi)
 /// lo and hi = 0 for a 1-element initial diagonal.
 pub fn new_wavefront_grid() -> WavefrontGrid {
-    let mut diags = Vec::new();
-    diags.push( (0, 0) );
-    
+    let diags = vec![(0, 0)];
     let offsets = vec![0, 1];
-
     let matches = vec![Some((0, AlignmentLayer::Matches)); 1];
     let inserts = vec![None; 1];
     let deletes = vec![None; 1];
@@ -104,13 +101,11 @@ impl WavefrontGrid {
 
     /// Get a value
     pub fn get(&self, layer:AlignmentLayer, score: usize, diag: i32,) -> Option<(i32, AlignmentLayer)> {
-        if score >= self.offsets.len() {
-            None
+        if score >= self.offsets.len()
+        || diag < self.diags[score].0
+        || diag > self.diags[score].1 {
         // offsets is always ahead by 1, since we know the len of a layer
         // when it's created. Adding a new layer updates the offset of the next layer.
-        } else if diag < self.diags[score].0 {
-            None
-        } else if diag > self.diags[score].1 {
             None
         } else {
             let diag_offset = (diag - self.diags[score].0) as usize;
