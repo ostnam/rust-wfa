@@ -33,5 +33,4 @@ fn main() {
 
     let t = now.elapsed();
     println!("Time to align using wavefront_align: {:.2?}", t);
-
 }

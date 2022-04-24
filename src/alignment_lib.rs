@@ -22,11 +22,15 @@ pub struct Alignment {
 /// Error type, for alignment errors.
 #[derive(Debug, Eq, PartialEq)]
 pub enum AlignError {
+    /// Both strings should have at least 1 character.
     ZeroLength(String),
+
+    /// query.len() needs to be <= to text.len()
     QueryTooLong(String),
 }
 
 #[derive(Debug, PartialEq, Eq)]
+/// Will eventually be replaced by Result<Alignment, AlignError>.
 pub enum AlignResult {
     Res(Alignment),
     Error(AlignError),
@@ -40,6 +44,7 @@ pub enum AlignmentLayer {
     Deletes,
 }
 
+/// The methods for every wavefront type.
 pub trait Wavefront {
     fn extend(&mut self);
     fn next(&mut self);
@@ -70,42 +75,63 @@ pub struct WavefrontGrid {
 /// lo and hi = 0 for a 1-element initial diagonal.
 pub fn new_wavefront_grid() -> WavefrontGrid {
     let diags = vec![(0, 0)];
-    let offsets = vec![0, 1];
+    // Stores the tuple of the (lowest, highest) diagonals for a given score.
+    // Initial value = (0, 0) => the last value is included.
+    // The first tuple item stores the lowest diagonal, and stores values <= 0.
+
     let matches = vec![Some((0, AlignmentLayer::Matches)); 1];
     let inserts = vec![None; 1];
     let deletes = vec![None; 1];
 
-    WavefrontGrid { 
+    let offsets = vec![0, 1];
+    // The furthest-reaching point will be stored in the previous 3 vecs.
+    // These vecs are 1D: instead of indicing them by 2D Vecs of v[score][diagonal],
+    // we'll indice them as:
+    //      v[offsets[score] + (diagonal - lowest_diag_at_that_score)]
+    //
+    // Thus, offsets stores the index at which a given score starts in the 3 previous vecs.
+    //
+    // Whenever we add a layer, we'll push n None values in the 3 vecs,
+    // with None = highest_diag - lowest_diag + 1
+    //      => We'll know in advance at which offset will the next score start.
+    //      Therefore, offsets' last value will always be in advance by 1.
+
+    WavefrontGrid {
         diags,
         offsets,
         matches,
         inserts,
-        deletes
+        deletes,
     }
 }
 
 impl WavefrontGrid {
-    /// Add a new layer
+    /// Add a new layer to the wavefronts.
+    /// lo and hi are the lowest/highest diagonals for this new layer.
     pub fn add_layer(&mut self, lo: i32, hi: i32) {
-        self.diags.push( (lo, hi) );
-         
+        self.diags.push((lo, hi));
+
         let new_width: usize = (hi - lo + 1) as usize;
-        self.offsets.push(self.offsets[self.offsets.len() - 1] + new_width);
+        self.offsets
+            .push(self.offsets[self.offsets.len() - 1] + new_width);
 
         for _ in lo..=hi {
             self.matches.push(None);
             self.inserts.push(None);
             self.deletes.push(None);
-        };
+        }
     }
 
-    /// Get a value
-    pub fn get(&self, layer:AlignmentLayer, score: usize, diag: i32,) -> Option<(i32, AlignmentLayer)> {
-        if score >= self.offsets.len()
-        || diag < self.diags[score].0
-        || diag > self.diags[score].1 {
-        // offsets is always ahead by 1, since we know the len of a layer
-        // when it's created. Adding a new layer updates the offset of the next layer.
+    /// Get a value.
+    pub fn get(
+        &self,
+        layer: AlignmentLayer,
+        score: usize,
+        diag: i32,
+    ) -> Option<(i32, AlignmentLayer)> {
+        if score >= self.offsets.len() || diag < self.diags[score].0 || diag > self.diags[score].1 {
+            // offsets is always ahead by 1, since we know the len of a layer
+            // when it's created. Adding a new layer updates the offset of the next layer.
             None
         } else {
             let diag_offset = (diag - self.diags[score].0) as usize;
@@ -118,10 +144,15 @@ impl WavefrontGrid {
         }
     }
 
-    pub fn set(&mut self, layer: AlignmentLayer, score: usize, diag: i32, value: Option<(i32, AlignmentLayer)>) {
-        if score < self.offsets.len() 
-        && diag >= self.diags[score].0
-        && diag <= self.diags[score].1 {
+    pub fn set(
+        &mut self,
+        layer: AlignmentLayer,
+        score: usize,
+        diag: i32,
+        value: Option<(i32, AlignmentLayer)>,
+    ) {
+        if score < self.offsets.len() && diag >= self.diags[score].0 && diag <= self.diags[score].1
+        {
             let position = self.offsets[score] + (diag - self.diags[score].0) as usize;
             match layer {
                 AlignmentLayer::Matches => self.matches[position] = value,
@@ -174,12 +205,22 @@ mod tests_wfgrid {
     }
 
     #[test]
+    fn test_get_wfgrid() {
+        // TODO
+    }
+
+    #[test]
     fn test_set_wfgrid() {
         // TODO
     }
 
     #[test]
-    fn test_get_wfgrid() {
+    fn test_get_diag_range() {
+        // TODO
+    }
+
+    #[test]
+    fn test_increment() {
         // TODO
     }
 }

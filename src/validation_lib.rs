@@ -1,6 +1,6 @@
-use crate::{alignment_lib::*, reference};
 use crate::reference::affine_gap_align;
 use crate::wavefront_alignment::wavefront_align;
+use crate::{alignment_lib::*, reference};
 use core::fmt;
 use rand::distributions::{Alphanumeric, Distribution, Standard};
 use rand::{thread_rng, Rng};
@@ -85,21 +85,26 @@ fn mutate(text: &str, min_error: i32, max_error: i32) -> String {
 fn compute_score_from_alignment(alignment: &Alignment, pens: &Penalties) -> i32 {
     let mut computed_score: i32 = 0;
     let mut current_layer: AlignmentLayer = AlignmentLayer::Matches;
-    for (c1, c2) in alignment.query_aligned.chars().zip(
-        alignment.text_aligned.chars()) {
+    for (c1, c2) in alignment
+        .query_aligned
+        .chars()
+        .zip(alignment.text_aligned.chars())
+    {
         if c1 == '-' {
-            computed_score += pens.extd_pen + match current_layer {
-                AlignmentLayer::Deletes => 0,
-                _ => pens.open_pen,
-            };
+            computed_score += pens.extd_pen
+                + match current_layer {
+                    AlignmentLayer::Deletes => 0,
+                    _ => pens.open_pen,
+                };
             current_layer = AlignmentLayer::Deletes;
         } else if c2 == '-' {
-            computed_score += pens.extd_pen + match current_layer {
-                AlignmentLayer::Inserts => 0,
-                _ => pens.open_pen,
-           };
-           current_layer = AlignmentLayer::Inserts;
-        } else { 
+            computed_score += pens.extd_pen
+                + match current_layer {
+                    AlignmentLayer::Inserts => 0,
+                    _ => pens.open_pen,
+                };
+            current_layer = AlignmentLayer::Inserts;
+        } else {
             current_layer = AlignmentLayer::Matches;
             if c1 != c2 {
                 computed_score += pens.mismatch_pen;

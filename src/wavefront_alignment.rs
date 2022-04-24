@@ -68,8 +68,7 @@ fn new_wavefront_state<'a>(
     query: &'a str,
     text: &'a str,
     pens: &'a Penalties,
-) -> WavefrontState<'a>
-{
+) -> WavefrontState<'a> {
     let q_chars: Vec<char> = query.chars().collect();
     let t_chars: Vec<char> = text.chars().collect();
 
@@ -98,14 +97,20 @@ fn new_wavefront_state<'a>(
     }
 }
 
-impl Wavefront for WavefrontState<'_>  {
+impl Wavefront for WavefrontState<'_> {
     fn extend(&mut self) {
         //! Extends the matches wavefronts to the furthest reaching point
         //! of the current score.
-        let diag_range = self.grid.get_diag_range(self.current_score).expect("get_diag_range returned None at wavefront_extend");
+        let diag_range = self
+            .grid
+            .get_diag_range(self.current_score)
+            .expect("get_diag_range returned None at wavefront_extend");
 
         for diag in (diag_range.0)..=(diag_range.1) {
-            let text_pos = match self.grid.get(AlignmentLayer::Matches, self.current_score, diag) {
+            let text_pos = match self
+                .grid
+                .get(AlignmentLayer::Matches, self.current_score, diag)
+            {
                 Some((val, _)) => val,
                 _ => continue,
             };
@@ -117,7 +122,7 @@ impl Wavefront for WavefrontState<'_>  {
             // matrix, the number of chars matched for the Query is the
             // number of Text chars matched + diagonal.
 
-            while query_pos < self.q_chars.len()  && text_pos < self.t_chars.len() {
+            while query_pos < self.q_chars.len() && text_pos < self.t_chars.len() {
                 match (
                     self.q_chars.get(query_pos as usize),
                     self.t_chars.get(text_pos as usize),
@@ -151,9 +156,7 @@ impl Wavefront for WavefrontState<'_>  {
             self.current_score,
             self.final_diagonal,
         ) {
-            Some((score, _)) => {
-                score as usize >= self.t_chars.len()
-            }
+            Some((score, _)) => score as usize >= self.t_chars.len(),
             _ => false,
         }
     }
@@ -162,31 +165,34 @@ impl Wavefront for WavefrontState<'_>  {
         //! Equivalent of WAVEFRONT_NEXT
 
         // Calculating the next highest diagonal of the wavefront
-        let mut hi = 1 + vec![self.current_score as i32 - self.pens.mismatch_pen,
-                              self.current_score as i32 - self.pens.open_pen - self.pens.extd_pen,
-                              self.current_score as i32 - self.pens.extd_pen]
-                                  .into_iter()
-                                  .filter(|x| *x >= 0)
-                                  .map(|x| x as usize)
-                                  .map(|x| self.grid.get_diag_range(x).unwrap_or(&(0, 0)).1)
-                                  .max()
-                                  .unwrap_or(0)
-                              ;
+        let mut hi = 1 + vec![
+            self.current_score as i32 - self.pens.mismatch_pen,
+            self.current_score as i32 - self.pens.open_pen - self.pens.extd_pen,
+            self.current_score as i32 - self.pens.extd_pen,
+        ]
+        .into_iter()
+        .filter(|x| *x >= 0)
+        .map(|x| x as usize)
+        .map(|x| self.grid.get_diag_range(x).unwrap_or(&(0, 0)).1)
+        .max()
+        .unwrap_or(0);
 
         if hi > self.highest_diag {
             hi = self.highest_diag;
         }
 
-        let mut lo = vec![self.current_score as i32 - self.pens.mismatch_pen,
-                              self.current_score as i32 - self.pens.open_pen - self.pens.extd_pen,
-                              self.current_score as i32 - self.pens.extd_pen]
-                                  .into_iter()
-                                  .filter(|x| *x >= 0)
-                                  .map(|x| x as usize)
-                                  .map(|x| self.grid.get_diag_range(x).unwrap_or(&(0, 0)).0)
-                                  .min()
-                                  .unwrap_or(0) - 1
-                          ;
+        let mut lo = vec![
+            self.current_score as i32 - self.pens.mismatch_pen,
+            self.current_score as i32 - self.pens.open_pen - self.pens.extd_pen,
+            self.current_score as i32 - self.pens.extd_pen,
+        ]
+        .into_iter()
+        .filter(|x| *x >= 0)
+        .map(|x| x as usize)
+        .map(|x| self.grid.get_diag_range(x).unwrap_or(&(0, 0)).0)
+        .min()
+        .unwrap_or(0)
+            - 1;
 
         if lo < self.lowest_diag {
             lo = self.lowest_diag;
@@ -213,109 +219,142 @@ impl Wavefront for WavefrontState<'_>  {
             match &mut curr_layer {
                 // If we're on a match
                 AlignmentLayer::Matches => {
-                    match self.grid.get(AlignmentLayer::Matches, curr_score, curr_diag) {
+                    match self
+                        .grid
+                        .get(AlignmentLayer::Matches, curr_score, curr_diag)
+                    {
                         Some((score, AlignmentLayer::Inserts)) => {
                             curr_layer = AlignmentLayer::Inserts;
                             let mut current_char = score;
-                            while current_char > self.grid
-                                                     .get(AlignmentLayer::Inserts, curr_score, curr_diag)
-                                                     .unwrap()
-                                                     .0 {
+                            while current_char
+                                > self
+                                    .grid
+                                    .get(AlignmentLayer::Inserts, curr_score, curr_diag)
+                                    .unwrap()
+                                    .0
+                            {
                                 query_aligned
                                     .push(self.q_chars[(current_char + curr_diag - 1) as usize]);
                                 text_aligned.push(self.t_chars[(current_char - 1) as usize]);
                                 current_char -= 1;
                             }
-                        },
+                        }
                         Some((score, AlignmentLayer::Deletes)) => {
                             curr_layer = AlignmentLayer::Deletes;
                             let mut current_char = score;
                             while current_char
-                                > self.grid.get(AlignmentLayer::Deletes, curr_score, curr_diag)
+                                > self
+                                    .grid
+                                    .get(AlignmentLayer::Deletes, curr_score, curr_diag)
                                     .unwrap()
-                                    .0 {
+                                    .0
+                            {
                                 query_aligned
                                     .push(self.q_chars[(current_char + curr_diag - 1) as usize]);
                                 text_aligned.push(self.t_chars[(current_char - 1) as usize]);
                                 current_char -= 1;
                             }
-                        },
-                        Some ((score, AlignmentLayer::Matches)) => {
+                        }
+                        Some((score, AlignmentLayer::Matches)) => {
                             let mut current_char = score;
                             curr_score -= self.pens.mismatch_pen as usize;
                             while current_char
-                                > self.grid.get(AlignmentLayer::Matches, curr_score, curr_diag)
+                                > self
+                                    .grid
+                                    .get(AlignmentLayer::Matches, curr_score, curr_diag)
                                     .unwrap()
-                                    .0 {
+                                    .0
+                            {
                                 query_aligned
                                     .push(self.q_chars[(current_char + curr_diag - 1) as usize]);
                                 text_aligned.push(self.t_chars[(current_char - 1) as usize]);
                                 current_char -= 1;
                             }
-                        },
+                        }
                         _ => panic!(),
                     };
-                },
+                }
                 // If we're on the Inserts layer.
                 AlignmentLayer::Inserts => {
-                    match self.grid.get(AlignmentLayer::Inserts, curr_score, curr_diag) {
+                    match self
+                        .grid
+                        .get(AlignmentLayer::Inserts, curr_score, curr_diag)
+                    {
                         Some((_, AlignmentLayer::Matches)) => {
-                            let previous = self.grid.get(AlignmentLayer::Matches,
-                                                    curr_score - (self.pens.extd_pen + self.pens.open_pen) as usize,
-                                                    curr_diag - 1)
-                                               .unwrap();
+                            let previous = self
+                                .grid
+                                .get(
+                                    AlignmentLayer::Matches,
+                                    curr_score - (self.pens.extd_pen + self.pens.open_pen) as usize,
+                                    curr_diag - 1,
+                                )
+                                .unwrap();
                             query_aligned.push(self.q_chars[(previous.0 + curr_diag - 1) as usize]);
                             text_aligned.push('-');
                             curr_diag -= 1;
                             curr_score -= (self.pens.extd_pen + self.pens.open_pen) as usize;
                             curr_layer = AlignmentLayer::Matches;
-                        },
+                        }
                         Some((_, AlignmentLayer::Inserts)) => {
-                            let previous = self.grid.get(AlignmentLayer::Inserts,
-                                                         curr_score - self.pens.extd_pen as usize,
-                                                        curr_diag - 1)
+                            let previous = self
+                                .grid
+                                .get(
+                                    AlignmentLayer::Inserts,
+                                    curr_score - self.pens.extd_pen as usize,
+                                    curr_diag - 1,
+                                )
                                 .unwrap();
                             query_aligned.push(self.q_chars[(previous.0 + curr_diag - 1) as usize]);
                             text_aligned.push('-');
                             curr_diag -= 1;
                             curr_score -= self.pens.extd_pen as usize;
-                        },
+                        }
                         _ => panic!(),
                     };
-                },
+                }
                 AlignmentLayer::Deletes => {
-                    match self.grid.get(AlignmentLayer::Deletes, curr_score, curr_diag) {
+                    match self
+                        .grid
+                        .get(AlignmentLayer::Deletes, curr_score, curr_diag)
+                    {
                         Some((_, AlignmentLayer::Matches)) => {
-                            let previous = self.grid.get(AlignmentLayer::Matches,
-                                curr_score - (self.pens.extd_pen + self.pens.open_pen) as usize,
-                                curr_diag + 1)
+                            let previous = self
+                                .grid
+                                .get(
+                                    AlignmentLayer::Matches,
+                                    curr_score - (self.pens.extd_pen + self.pens.open_pen) as usize,
+                                    curr_diag + 1,
+                                )
                                 .unwrap();
                             query_aligned.push('-');
                             text_aligned.push(self.t_chars[(previous.0) as usize]);
                             curr_diag += 1;
                             curr_score -= (self.pens.extd_pen + self.pens.open_pen) as usize;
                             curr_layer = AlignmentLayer::Matches;
-                        },
+                        }
 
                         Some((_, AlignmentLayer::Deletes)) => {
-                            let previous = self.grid.get(AlignmentLayer::Deletes,
-                                curr_score - self.pens.extd_pen as usize,
-                                curr_diag + 1)
+                            let previous = self
+                                .grid
+                                .get(
+                                    AlignmentLayer::Deletes,
+                                    curr_score - self.pens.extd_pen as usize,
+                                    curr_diag + 1,
+                                )
                                 .unwrap();
                             query_aligned.push('-');
                             text_aligned.push(self.t_chars[(previous.0) as usize]);
                             curr_diag += 1;
                             curr_score -= self.pens.extd_pen as usize;
-                        },
+                        }
                         _ => panic!(),
                     };
-                },
+                }
             };
         }
         if let AlignmentLayer::Matches = curr_layer {
             if curr_score == 0 {
-                let remaining =
-                    self.grid.get(AlignmentLayer::Matches, 0, 0).unwrap().0 as usize;
+                let remaining = self.grid.get(AlignmentLayer::Matches, 0, 0).unwrap().0 as usize;
                 if remaining > 0 {
                     query_aligned =
                         query_aligned + &self.q_chars[..remaining].iter().rev().collect::<String>();
@@ -324,7 +363,7 @@ impl Wavefront for WavefrontState<'_>  {
                 }
             }
         }
-    
+
         let q = query_aligned.chars().rev().collect();
         let t = text_aligned.chars().rev().collect();
 
@@ -338,7 +377,8 @@ impl Wavefront for WavefrontState<'_>  {
 
 impl<'a> WavefrontState<'a> {
     fn update_ins(&mut self, diag: i32) {
-        let from_open = if self.current_score >= (self.pens.open_pen + self.pens.extd_pen) as usize {
+        let from_open = if self.current_score >= (self.pens.open_pen + self.pens.extd_pen) as usize
+        {
             self.grid.get(
                 AlignmentLayer::Matches,
                 self.current_score - (self.pens.open_pen + self.pens.extd_pen) as usize,
@@ -356,26 +396,38 @@ impl<'a> WavefrontState<'a> {
         } else {
             None
         };
-        match (from_open ,from_extd) {
+        match (from_open, from_extd) {
             (None, None) => (),
             (Some(x), None) => {
-                self.grid.set(AlignmentLayer::Inserts, self.current_score, diag,
-                    Some((x.0, AlignmentLayer::Matches))
+                self.grid.set(
+                    AlignmentLayer::Inserts,
+                    self.current_score,
+                    diag,
+                    Some((x.0, AlignmentLayer::Matches)),
                 );
             }
             (None, Some(x)) => {
-                self.grid.set(AlignmentLayer::Inserts, self.current_score, diag,
-                    Some((x.0, AlignmentLayer::Inserts))
-                  );
-            },
+                self.grid.set(
+                    AlignmentLayer::Inserts,
+                    self.current_score,
+                    diag,
+                    Some((x.0, AlignmentLayer::Inserts)),
+                );
+            }
             (Some(x), Some(y)) => {
                 if x.0 > y.0 {
-                    self.grid.set(AlignmentLayer::Inserts, self.current_score, diag,
-                        Some((x.0, AlignmentLayer::Matches))
+                    self.grid.set(
+                        AlignmentLayer::Inserts,
+                        self.current_score,
+                        diag,
+                        Some((x.0, AlignmentLayer::Matches)),
                     );
                 } else {
-                    self.grid.set(AlignmentLayer::Inserts, self.current_score, diag,
-                        Some((y.0, AlignmentLayer::Inserts))
+                    self.grid.set(
+                        AlignmentLayer::Inserts,
+                        self.current_score,
+                        diag,
+                        Some((y.0, AlignmentLayer::Inserts)),
                     );
                 }
             }
@@ -383,7 +435,8 @@ impl<'a> WavefrontState<'a> {
     }
 
     fn update_del(&mut self, diag: i32) {
-        let from_open = if self.current_score >= (self.pens.open_pen + self.pens.extd_pen) as usize {
+        let from_open = if self.current_score >= (self.pens.open_pen + self.pens.extd_pen) as usize
+        {
             self.grid.get(
                 AlignmentLayer::Matches,
                 self.current_score - (self.pens.open_pen + self.pens.extd_pen) as usize,
@@ -405,23 +458,35 @@ impl<'a> WavefrontState<'a> {
         match (from_open, from_extd) {
             (None, None) => (),
             (Some(x), None) => {
-                self.grid.set(AlignmentLayer::Deletes, self.current_score, diag,
-                    Some((x.0 + 1, AlignmentLayer::Matches))
-                    );
+                self.grid.set(
+                    AlignmentLayer::Deletes,
+                    self.current_score,
+                    diag,
+                    Some((x.0 + 1, AlignmentLayer::Matches)),
+                );
             }
             (None, Some(x)) => {
-                self.grid.set(AlignmentLayer::Deletes, self.current_score, diag,
-                    Some((x.0 + 1, AlignmentLayer::Deletes))
+                self.grid.set(
+                    AlignmentLayer::Deletes,
+                    self.current_score,
+                    diag,
+                    Some((x.0 + 1, AlignmentLayer::Deletes)),
                 );
             }
             (Some(x), Some(y)) => {
                 if x.0 >= y.0 {
-                    self.grid.set(AlignmentLayer::Deletes, self.current_score, diag,
-                        Some((x.0 + 1, AlignmentLayer::Matches))
+                    self.grid.set(
+                        AlignmentLayer::Deletes,
+                        self.current_score,
+                        diag,
+                        Some((x.0 + 1, AlignmentLayer::Matches)),
                     );
                 } else {
-                    self.grid.set(AlignmentLayer::Deletes, self.current_score, diag,
-                        Some((y.0 + 1, AlignmentLayer::Deletes))
+                    self.grid.set(
+                        AlignmentLayer::Deletes,
+                        self.current_score,
+                        diag,
+                        Some((y.0 + 1, AlignmentLayer::Deletes)),
                     );
                 }
             }
@@ -439,46 +504,51 @@ impl<'a> WavefrontState<'a> {
             None
         };
 
-        self.grid.set(AlignmentLayer::Matches, self.current_score, diag, match (
-            from_mismatch
-            ,
-            self.grid.get(AlignmentLayer::Inserts, self.current_score, diag),
-            self.grid.get(AlignmentLayer::Deletes, self.current_score, diag),
-        ) {
-            (None, None, None) => None,
-            (Some(x), None, None) => Some((x.0 + 1, AlignmentLayer::Matches)),
-            (None, Some(x), None) => Some((x.0, AlignmentLayer::Inserts)),
-            (None, None, Some(x)) => Some((x.0, AlignmentLayer::Deletes)),
-            (Some(x), Some(y), None) => Some(if x.0 + 1 >= y.0 {
-                (x.0 + 1, AlignmentLayer::Matches)
-            } else {
-                (y.0, AlignmentLayer::Inserts)
-            }),
-
-            (Some(x), None, Some(y)) => Some(if x.0 + 1 >= y.0 {
-                (x.0 + 1, AlignmentLayer::Matches)
-            } else {
-                (y.0, AlignmentLayer::Deletes)
-            }),
-
-            (None, Some(x), Some(y)) => Some(if x.0 > y.0 {
-                (x.0, AlignmentLayer::Inserts)
-            } else {
-                (y.0, AlignmentLayer::Deletes)
-            }),
-
-            (Some(x), Some(y), Some(z)) => Some(if x.0 + 1 >= y.0 {
-                if x.0 + 1 >= z.0 {
+        self.grid.set(
+            AlignmentLayer::Matches,
+            self.current_score,
+            diag,
+            match (
+                from_mismatch,
+                self.grid
+                    .get(AlignmentLayer::Inserts, self.current_score, diag),
+                self.grid
+                    .get(AlignmentLayer::Deletes, self.current_score, diag),
+            ) {
+                (None, None, None) => None,
+                (Some(x), None, None) => Some((x.0 + 1, AlignmentLayer::Matches)),
+                (None, Some(x), None) => Some((x.0, AlignmentLayer::Inserts)),
+                (None, None, Some(x)) => Some((x.0, AlignmentLayer::Deletes)),
+                (Some(x), Some(y), None) => Some(if x.0 + 1 >= y.0 {
                     (x.0 + 1, AlignmentLayer::Matches)
                 } else {
-                    (z.0, AlignmentLayer::Deletes)
-                }
-            } else if y.0 > z.0 {
                     (y.0, AlignmentLayer::Inserts)
-            } else {
+                }),
+
+                (Some(x), None, Some(y)) => Some(if x.0 + 1 >= y.0 {
+                    (x.0 + 1, AlignmentLayer::Matches)
+                } else {
+                    (y.0, AlignmentLayer::Deletes)
+                }),
+
+                (None, Some(x), Some(y)) => Some(if x.0 > y.0 {
+                    (x.0, AlignmentLayer::Inserts)
+                } else {
+                    (y.0, AlignmentLayer::Deletes)
+                }),
+
+                (Some(x), Some(y), Some(z)) => Some(if x.0 + 1 >= y.0 {
+                    if x.0 + 1 >= z.0 {
+                        (x.0 + 1, AlignmentLayer::Matches)
+                    } else {
+                        (z.0, AlignmentLayer::Deletes)
+                    }
+                } else if y.0 > z.0 {
+                    (y.0, AlignmentLayer::Inserts)
+                } else {
                     (z.0, AlignmentLayer::Deletes)
-            }),
-        }
+                }),
+            },
         )
     }
 }

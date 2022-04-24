@@ -51,15 +51,19 @@ fn validate_concurrent(args: ValidateArgs) {
 
     for _ in 0..num_threads {
         let new_tx = tx.clone();
-        threads.push(thread::spawn(move || while new_tx.send(compare_alignment(
-                &AlignmentType::WavefrontNaive,
-                &AlignmentType::Reference,
-                args.min_length,
-                args.max_length,
-                args.min_error,
-                args.max_error,
-            )).is_ok() {}
-        ));
+        threads.push(thread::spawn(move || {
+            while new_tx
+                .send(compare_alignment(
+                    &AlignmentType::WavefrontNaive,
+                    &AlignmentType::Reference,
+                    args.min_length,
+                    args.max_length,
+                    args.min_error,
+                    args.max_error,
+                ))
+                .is_ok()
+            {}
+        }));
     }
 
     for cycle in 0..=u64::MAX {
