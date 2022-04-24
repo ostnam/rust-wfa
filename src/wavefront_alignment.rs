@@ -285,7 +285,7 @@ impl Wavefront for WavefrontState<'_>  {
                 },
                 AlignmentLayer::Deletes => {
                     match self.grid.get(AlignmentLayer::Deletes, curr_score, curr_diag) {
-                        Some((score, AlignmentLayer::Matches)) => {
+                        Some((_, AlignmentLayer::Matches)) => {
                             let previous = self.grid.get(AlignmentLayer::Matches,
                                 curr_score - (self.pens.extd_pen + self.pens.open_pen) as usize,
                                 curr_diag + 1)
@@ -297,7 +297,7 @@ impl Wavefront for WavefrontState<'_>  {
                             curr_layer = AlignmentLayer::Matches;
                         },
 
-                        Some((score, AlignmentLayer::Deletes)) => {
+                        Some((_, AlignmentLayer::Deletes)) => {
                             let previous = self.grid.get(AlignmentLayer::Deletes,
                                 curr_score - self.pens.extd_pen as usize,
                                 curr_diag + 1)
@@ -429,12 +429,19 @@ impl<'a> WavefrontState<'a> {
     }
 
     fn update_mat(&mut self, diag: i32) {
-        self.grid.set(AlignmentLayer::Matches, self.current_score, diag, match (
+        let from_mismatch = if self.current_score >= self.pens.mismatch_pen as usize {
             self.grid.get(
                 AlignmentLayer::Matches,
                 self.current_score - self.pens.mismatch_pen as usize,
                 diag,
-            ),
+            )
+        } else {
+            None
+        };
+
+        self.grid.set(AlignmentLayer::Matches, self.current_score, diag, match (
+            from_mismatch
+            ,
             self.grid.get(AlignmentLayer::Inserts, self.current_score, diag),
             self.grid.get(AlignmentLayer::Deletes, self.current_score, diag),
         ) {
