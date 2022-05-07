@@ -3,9 +3,9 @@
 /// The penalty for any gap is length * extd_pen + open_pen. The extension pen is also applied
 /// when a gap is opened.
 /// Penalties should be a positive int.
-use strum_macros::EnumString;
+use strum_macros::{EnumString, Display};
 
-#[derive(Clone, Copy, Debug, EnumString)]
+#[derive(Clone, Copy, Debug, EnumString, Display)]
 pub enum AlignmentAlgorithm {
     Wavefront,
     WavefrontAdaptive,

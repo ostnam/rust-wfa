@@ -5,19 +5,26 @@ use std::time::Instant;
 
 /// Struct used for parsing CLI args with clap.
 #[derive(Parser, Debug)]
-#[clap(author, version, about, long_about = None)]
+#[clap(author="Mansour Tsougaev", version, about="Wavefront alignment in Rust.")]
 struct MainArgs {
-    #[clap(short, long)]
+    #[clap(short, long, default_value_t = AlignmentAlgorithm::Wavefront)]
+    /// Alignment algorithm that will be used. Possible values: Wavefront, SWG.
     algorithm: AlignmentAlgorithm,
 
     #[clap(short, long)]
+    /// Penalty for mismatching 2 chars.
     mismatch_pen: i32,
+
     #[clap(short, long)]
+    /// Penalty for opening a gap.
     open_pen: i32,
+
     #[clap(short, long)]
+    /// Penalty for extending a gap by 1. Is also applied once when the gap is opened.
     extd_pen: i32,
 
     #[clap(short, long)]
+    /// Whether to print how long it took to align.
     bench: bool,
 }
 

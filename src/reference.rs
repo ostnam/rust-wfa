@@ -1,5 +1,4 @@
 use std::cmp::min;
-
 use crate::alignment_lib::{AlignmentLayer, Penalties, Alignment, AlignmentError};
 
 #[derive(Debug)]
