@@ -59,10 +59,10 @@ fn main() {
     };
 
     match alignment {
-        lib::alignment_lib::AlignResult::Res(alignment) => print!(
+        Ok(alignment) => print!(
             "{}\n{}\n{}\n",
             alignment.score, alignment.query_aligned, alignment.text_aligned
         ),
-        lib::alignment_lib::AlignResult::Error(e) => panic!("Alignment returned an error: {:?}", e),
+        Err(e) => panic!("Alignment returned an error: {:?}", e),
     };
 }

@@ -1,5 +1,5 @@
 use lib::{
-    alignment_lib::Penalties, reference::affine_gap_align, wavefront_alignment::wavefront_align, alignment_lib::AlignmentAlgorithm,
+    alignment_lib::Penalties, reference::affine_gap_align, wavefront_alignment::wavefront_align,
 };
 use std::io::{stdin, BufRead};
 use std::time::Instant;

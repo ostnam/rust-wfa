@@ -30,19 +30,12 @@ pub struct Alignment {
 
 /// Error type, for alignment errors.
 #[derive(Debug, Eq, PartialEq)]
-pub enum AlignError {
+pub enum AlignmentError {
     /// Both strings should have at least 1 character.
     ZeroLength(String),
 
     /// query.len() needs to be <= to text.len()
     QueryTooLong(String),
-}
-
-#[derive(Debug, PartialEq, Eq)]
-/// Will eventually be replaced by Result<Alignment, AlignError>.
-pub enum AlignResult {
-    Res(Alignment),
-    Error(AlignError),
 }
 
 /// Alignment layers. Used for tracking back.
@@ -59,7 +52,7 @@ pub trait Wavefront {
     fn next(&mut self);
     fn increment_score(&mut self);
     fn is_finished(&self) -> bool;
-    fn backtrace(&self) -> AlignResult;
+    fn backtrace(&self) -> Result<Alignment, AlignmentError>;
 }
 
 /// Used to store and access wavefronts efficiently.

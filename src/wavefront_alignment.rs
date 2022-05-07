@@ -5,9 +5,9 @@ use super::alignment_lib::*;
 
 /// This function is exported and can be called to perform an alignment.
 /// The query cannot be longer than the text.
-pub fn wavefront_align(query: &str, text: &str, pens: &Penalties) -> AlignResult {
+pub fn wavefront_align(query: &str, text: &str, pens: &Penalties) -> Result<Alignment, AlignmentError> {
     if query.is_empty() || text.is_empty() {
-        return AlignResult::Error(AlignError::ZeroLength(format!(
+        return Err(AlignmentError::ZeroLength(format!(
             "At least one of the string slices passed to wavefront_align had a length of zero.
                         Length of query: {}
                         Length of text:  {}",
@@ -16,8 +16,8 @@ pub fn wavefront_align(query: &str, text: &str, pens: &Penalties) -> AlignResult
         )));
     }
     if query.len() > text.len() {
-        return AlignResult::Error(
-                   AlignError::QueryTooLong(
+        return Err(
+                   AlignmentError::QueryTooLong(
                        "Query is longer than the reference string.
                         The length of the first string must be <= to the the length of the second string".to_string()
                       )
@@ -207,7 +207,7 @@ impl Wavefront for WavefrontState<'_> {
         }
     }
 
-    fn backtrace(&self) -> AlignResult {
+    fn backtrace(&self) -> Result<Alignment, AlignmentError> {
         let mut curr_score = self.current_score;
         let mut curr_diag = self.final_diagonal;
         let mut curr_layer = AlignmentLayer::Matches;
@@ -367,7 +367,7 @@ impl Wavefront for WavefrontState<'_> {
         let q = query_aligned.chars().rev().collect();
         let t = text_aligned.chars().rev().collect();
 
-        AlignResult::Res(Alignment {
+        Ok(Alignment {
             score: self.current_score as i32,
             query_aligned: q,
             text_aligned: t,
@@ -798,7 +798,7 @@ mod tests {
                     open_pen: 1,
                 }
             ),
-            AlignResult::Res(Alignment {
+            Ok(Alignment {
                 query_aligned: "AViidI-".to_string(),
                 text_aligned: "-ViidIM".to_string(),
                 score: 4,
@@ -815,7 +815,7 @@ mod tests {
                     open_pen: 1,
                 }
             ),
-            AlignResult::Res(Alignment {
+            Ok(Alignment {
                 query_aligned: "AVD-".to_string(),
                 text_aligned: "-VDM".to_string(),
                 score: 4,
@@ -832,7 +832,7 @@ mod tests {
                     open_pen: 1,
                 }
             ),
-            AlignResult::Res(Alignment {
+            Ok(Alignment {
                 query_aligned: "AV".to_string(),
                 text_aligned: "VM".to_string(),
                 score: 4,
@@ -852,7 +852,7 @@ mod tests {
                     open_pen: 1,
                 }
             ),
-            AlignResult::Res(Alignment {
+            Ok(Alignment {
                 query_aligned: "CAT".to_string(),
                 text_aligned: "CAT".to_string(),
                 score: 0,
@@ -868,7 +868,7 @@ mod tests {
                     open_pen: 1,
                 }
             ),
-            AlignResult::Res(Alignment {
+            Ok(Alignment {
                 query_aligned: "CAT-".to_string(),
                 text_aligned: "CATS".to_string(),
                 score: 2,
@@ -884,7 +884,7 @@ mod tests {
                     open_pen: 100,
                 }
             ),
-            AlignResult::Res(Alignment {
+            Ok(Alignment {
                 query_aligned: "XX".to_string(),
                 text_aligned: "YY".to_string(),
                 score: 2,
@@ -900,7 +900,7 @@ mod tests {
                     open_pen: 1,
                 }
             ),
-            AlignResult::Res(Alignment {
+            Ok(Alignment {
                 query_aligned: "XX--".to_string(),
                 text_aligned: "--YY".to_string(),
                 score: 6,
@@ -916,7 +916,7 @@ mod tests {
                     open_pen: 1,
                 }
             ),
-            AlignResult::Res(Alignment {
+            Ok(Alignment {
                 query_aligned: "XX--------".to_string(),
                 text_aligned: "--YYYYYYYY".to_string(),
                 score: 12,
@@ -932,7 +932,7 @@ mod tests {
                     open_pen: 1,
                 }
             ),
-            AlignResult::Res(Alignment {
+            Ok(Alignment {
                 query_aligned: "XX-ZZ".to_string(),
                 text_aligned: "XXYZ-".to_string(),
                 score: 4,
@@ -952,7 +952,7 @@ mod tests {
                     open_pen: 1,
                 }
             ) {
-                AlignResult::Res(s) => s.score,
+                Ok(s) => s.score,
                 _ => -1,
             },
             6
@@ -968,7 +968,7 @@ mod tests {
                     open_pen: 82,
                 }
             ) {
-                AlignResult::Res(s) => s.score,
+                Ok(s) => s.score,
                 _ => -1,
             },
             472

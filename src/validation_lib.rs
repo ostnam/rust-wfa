@@ -138,7 +138,7 @@ impl Debug for ScoreMismatch {
 #[derive(Debug)]
 pub struct AlignResultMismatch {
     failed_type: AlignmentAlgorithm,
-    failed: AlignError,
+    failed: AlignmentError,
 }
 
 pub fn compare_alignment(
@@ -182,7 +182,7 @@ pub fn compare_alignment(
     };
 
     match (a_result, b_result) {
-        (AlignResult::Res(a), AlignResult::Res(b)) => {
+        (Ok(a), Ok(b)) => {
             if a.score == b.score {
                 ValidationResult::Passed
             } else {
@@ -199,14 +199,14 @@ pub fn compare_alignment(
                 }))
             }
         }
-        (AlignResult::Error(_), AlignResult::Error(_)) => ValidationResult::Passed,
-        (AlignResult::Error(a), AlignResult::Res(_)) => ValidationResult::Failed(
+        (Err(_), Err(_)) => ValidationResult::Passed,
+        (Err(a), Ok(_)) => ValidationResult::Failed(
             ValidationFailureType::AlignResultMismatch(AlignResultMismatch {
                 failed_type: *b_type,
                 failed: a,
             }),
         ),
-        (AlignResult::Res(_), AlignResult::Error(a)) => ValidationResult::Failed(
+        (Ok(_), Err(a)) => ValidationResult::Failed(
             ValidationFailureType::AlignResultMismatch(AlignResultMismatch {
                 failed_type: *a_type,
                 failed: a,
@@ -244,7 +244,7 @@ pub fn validate_sma(
         _ => todo!(),
     };
     match a_result {
-        AlignResult::Res(a) => (compute_score_from_alignment(&a, &pens), a, pens),
-        AlignResult::Error(_) => panic!(),
+        Ok(a) => (compute_score_from_alignment(&a, &pens), a, pens),
+        Err(_) => panic!(),
     }
 }

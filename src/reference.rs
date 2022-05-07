@@ -1,19 +1,19 @@
 use std::cmp::min;
 
-pub use crate::alignment_lib::{self, AlignmentLayer, Penalties};
+use crate::alignment_lib::{AlignmentLayer, Penalties, Alignment, AlignmentError};
 
 #[derive(Debug)]
 struct AlignMat {
-    inserts: Vec<Vec<(Option<i32>, Option<alignment_lib::AlignmentLayer>)>>,
-    matches: Vec<Vec<(Option<i32>, Option<alignment_lib::AlignmentLayer>)>>,
-    deletes: Vec<Vec<(Option<i32>, Option<alignment_lib::AlignmentLayer>)>>,
+    inserts: Vec<Vec<(Option<i32>, Option<AlignmentLayer>)>>,
+    matches: Vec<Vec<(Option<i32>, Option<AlignmentLayer>)>>,
+    deletes: Vec<Vec<(Option<i32>, Option<AlignmentLayer>)>>,
 }
 
 pub fn affine_gap_align(
     a: &str,
     b: &str,
-    pens: &alignment_lib::Penalties,
-) -> alignment_lib::AlignResult {
+    pens: &Penalties,
+) -> Result<Alignment, AlignmentError> {
     let align_mat = affine_gap_mat(a, b, pens);
     trace_back(&align_mat, a, b)
 }
@@ -164,8 +164,8 @@ fn new_mat(a: &str, b: &str, pens: &Penalties) -> AlignMat {
     }
 }
 
-fn trace_back(mat: &AlignMat, a: &str, b: &str) -> alignment_lib::AlignResult {
-    let mut result = alignment_lib::Alignment {
+fn trace_back(mat: &AlignMat, a: &str, b: &str) -> Result<Alignment, AlignmentError> {
+    let mut result = Alignment {
         query_aligned: String::new(),
         text_aligned: String::new(),
         score: 0,
@@ -227,13 +227,12 @@ fn trace_back(mat: &AlignMat, a: &str, b: &str) -> alignment_lib::AlignResult {
     }
     result.query_aligned = result.query_aligned.chars().rev().collect();
     result.text_aligned = result.text_aligned.chars().rev().collect();
-    alignment_lib::AlignResult::Res(result)
+    Ok(result)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::alignment_lib::AlignResult;
 
     #[test]
     fn assert_align_score() {
@@ -247,7 +246,7 @@ mod tests {
                     open_pen: 1,
                 }
             ),
-            alignment_lib::AlignResult::Res(alignment_lib::Alignment {
+            Ok(Alignment {
                 query_aligned: "CAT".to_string(),
                 text_aligned: "CAT".to_string(),
                 score: 0,
@@ -263,7 +262,7 @@ mod tests {
                     open_pen: 1,
                 }
             ),
-            alignment_lib::AlignResult::Res(alignment_lib::Alignment {
+            Ok(Alignment {
                 query_aligned: "CAT-".to_string(),
                 text_aligned: "CATS".to_string(),
                 score: 2,
@@ -279,7 +278,7 @@ mod tests {
                     open_pen: 100,
                 }
             ),
-            alignment_lib::AlignResult::Res(alignment_lib::Alignment {
+            Ok(Alignment {
                 query_aligned: "XX".to_string(),
                 text_aligned: "YY".to_string(),
                 score: 2,
@@ -295,7 +294,7 @@ mod tests {
                     open_pen: 1,
                 }
             ),
-            alignment_lib::AlignResult::Res(alignment_lib::Alignment {
+            Ok(Alignment {
                 query_aligned: "XX--".to_string(),
                 text_aligned: "--YY".to_string(),
                 score: 6,
@@ -311,7 +310,7 @@ mod tests {
                     open_pen: 1,
                 }
             ),
-            alignment_lib::AlignResult::Res(alignment_lib::Alignment {
+            Ok(Alignment {
                 query_aligned: "XX--------".to_string(),
                 text_aligned: "--YYYYYYYY".to_string(),
                 score: 12,
@@ -327,7 +326,7 @@ mod tests {
                     open_pen: 1,
                 }
             ),
-            alignment_lib::AlignResult::Res(alignment_lib::Alignment {
+            Ok(Alignment {
                 query_aligned: "XX-ZZ".to_string(),
                 text_aligned: "XXYZ-".to_string(),
                 score: 4,
@@ -343,7 +342,7 @@ mod tests {
                     open_pen: 1,
                 }
             ) {
-                AlignResult::Res(s) => s.score,
+                Ok(s) => s.score,
                 _ => -1,
             },
             6
@@ -359,7 +358,7 @@ mod tests {
                     open_pen: 82,
                 }
             ) {
-                AlignResult::Res(s) => s.score,
+                Ok(s) => s.score,
                 _ => -1,
             },
             472
