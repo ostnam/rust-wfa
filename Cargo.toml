@@ -21,10 +21,6 @@ path = "src/validate.rs"
 name = "validate_score_matches_alignment"
 path = "src/validate_score_matches_alignment.rs"
 
-[[bin]]
-name = "bench_manual"
-path = "src/bench_manual.rs"
-
 [[bench]]
 name = "bench_wfa"
 harness = false
