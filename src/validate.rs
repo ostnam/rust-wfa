@@ -25,10 +25,14 @@ struct ValidateArgs {
 
     #[clap(long)]
     max_error: i32,
+
+    #[clap(short, long, default_value_t = u64::MAX)]
+    /// Number of random pairings to validate.
+    number: u64,
 }
 
-fn validate(args: ValidateArgs) {
-    for cycle in 0..u32::MAX {
+fn validate(args: ValidateArgs) -> bool {
+    for cycle in 0..args.number {
         match compare_alignment(
             &AlignmentAlgorithm::Wavefront,
             &AlignmentAlgorithm::SWG,
@@ -40,12 +44,14 @@ fn validate(args: ValidateArgs) {
             ValidationResult::Passed => println!("Validation successful at cycle {}", cycle),
             ValidationResult::Failed(a) => {
                 println!("Validation failed at cycle {}. \n {:?}", cycle, a);
+                return false;
             }
         }
     }
+    true
 }
 
-fn validate_concurrent(args: ValidateArgs) {
+fn validate_concurrent(args: ValidateArgs) -> bool {
     let num_threads = num_cpus::get();
     let (tx, rx): (Sender<ValidationResult>, Receiver<ValidationResult>) = mpsc::channel();
     let mut threads = Vec::new();
@@ -67,15 +73,20 @@ fn validate_concurrent(args: ValidateArgs) {
         }));
     }
 
-    for cycle in 0..=u64::MAX {
+    for cycle in 1..=args.number {
         match rx.recv() {
             Ok(ValidationResult::Passed) => println!("Validation successful at cycle {}", cycle),
             Ok(ValidationResult::Failed(a)) => {
                 println!("Validation failed at cycle {}. \n {:?}", cycle, a);
+                return false;
             }
-            Err(_) => panic!(),
+            Err(a) => {
+                println!("{a}");
+                return false;
+            }
         }
     }
+    true
 }
 
 fn main() {
@@ -84,5 +95,23 @@ fn main() {
         validate_concurrent(args);
     } else {
         validate(args);
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn validate_250_parallel() {
+        assert!(validate_concurrent(ValidateArgs {
+            min_length: 0,
+            max_length: 100,
+            min_error: 0,
+            max_error: 100,
+            number: 250,
+            parallel: true,
+        }
+        ));
     }
 }

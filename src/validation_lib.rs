@@ -137,8 +137,8 @@ impl Debug for ScoreMismatch {
 
 #[derive(Debug)]
 pub struct AlignResultMismatch {
-    failed_type: AlignmentAlgorithm,
-    failed: AlignmentError,
+    pub failed_type: AlignmentAlgorithm,
+    pub failed: AlignmentError,
 }
 
 pub fn compare_alignment(
