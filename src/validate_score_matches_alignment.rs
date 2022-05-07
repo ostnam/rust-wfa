@@ -1,4 +1,4 @@
-use lib::alignment_lib::{Alignment, Penalties};
+use lib::alignment_lib::{Alignment, AlignmentAlgorithm, Penalties};
 use lib::validation_lib::*;
 
 use std::sync::mpsc;
@@ -30,7 +30,7 @@ struct ValidateArgs {
 fn run_validate_sma(args: ValidateArgs) {
     for cycle in 0..u32::MAX {
         let (computed_score, alignment, pens) = validate_sma(
-            &AlignmentType::WavefrontNaive,
+            &AlignmentAlgorithm::Wavefront,
             args.min_length,
             args.max_length,
             args.min_error,
@@ -58,7 +58,7 @@ fn run_validate_sma_concurrent(args: ValidateArgs) {
         threads.push(thread::spawn(move || {
             while new_tx
                 .send(validate_sma(
-                    &AlignmentType::WavefrontNaive,
+                    &AlignmentAlgorithm::Wavefront,
                     args.min_length,
                     args.max_length,
                     args.min_error,

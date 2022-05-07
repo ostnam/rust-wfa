@@ -5,14 +5,6 @@ use core::fmt;
 use rand::distributions::{Alphanumeric, Distribution, Standard};
 use rand::{thread_rng, Rng};
 use std::fmt::Debug;
-use strum_macros::EnumString;
-
-#[derive(Clone, Copy, Debug, EnumString)]
-pub enum AlignmentType {
-    WavefrontNaive,
-    WavefrontNaiveAdaptive,
-    Reference,
-}
 
 enum MutationType {
     Insertion,
@@ -145,13 +137,13 @@ impl Debug for ScoreMismatch {
 
 #[derive(Debug)]
 pub struct AlignResultMismatch {
-    failed_type: AlignmentType,
+    failed_type: AlignmentAlgorithm,
     failed: AlignError,
 }
 
 pub fn compare_alignment(
-    a_type: &AlignmentType,
-    b_type: &AlignmentType,
+    a_type: &AlignmentAlgorithm,
+    b_type: &AlignmentAlgorithm,
     min_length: usize,
     max_length: usize,
     min_error: i32,
@@ -175,18 +167,18 @@ pub fn compare_alignment(
 
     // align them using the method
     let (a_result, b_result) = match (a_type, b_type) {
-        (AlignmentType::WavefrontNaive, AlignmentType::WavefrontNaive) => todo!(),
-        (AlignmentType::WavefrontNaive, AlignmentType::WavefrontNaiveAdaptive) => todo!(),
-        (AlignmentType::WavefrontNaive, AlignmentType::Reference) => (
+        (AlignmentAlgorithm::Wavefront, AlignmentAlgorithm::Wavefront) => todo!(),
+        (AlignmentAlgorithm::Wavefront, AlignmentAlgorithm::WavefrontAdaptive) => todo!(),
+        (AlignmentAlgorithm::Wavefront, AlignmentAlgorithm::SWG) => (
             wavefront_align(&query, &text, &pens),
             affine_gap_align(&query, &text, &pens),
         ),
-        (AlignmentType::WavefrontNaiveAdaptive, AlignmentType::WavefrontNaive) => todo!(),
-        (AlignmentType::WavefrontNaiveAdaptive, AlignmentType::WavefrontNaiveAdaptive) => todo!(),
-        (AlignmentType::WavefrontNaiveAdaptive, AlignmentType::Reference) => todo!(),
-        (AlignmentType::Reference, AlignmentType::WavefrontNaive) => todo!(),
-        (AlignmentType::Reference, AlignmentType::WavefrontNaiveAdaptive) => todo!(),
-        (AlignmentType::Reference, AlignmentType::Reference) => todo!(),
+        (AlignmentAlgorithm::WavefrontAdaptive, AlignmentAlgorithm::Wavefront) => todo!(),
+        (AlignmentAlgorithm::WavefrontAdaptive, AlignmentAlgorithm::WavefrontAdaptive) => todo!(),
+        (AlignmentAlgorithm::WavefrontAdaptive, AlignmentAlgorithm::SWG) => todo!(),
+        (AlignmentAlgorithm::SWG, AlignmentAlgorithm::Wavefront) => todo!(),
+        (AlignmentAlgorithm::SWG, AlignmentAlgorithm::WavefrontAdaptive) => todo!(),
+        (AlignmentAlgorithm::SWG, AlignmentAlgorithm::SWG) => todo!(),
     };
 
     match (a_result, b_result) {
@@ -223,7 +215,7 @@ pub fn compare_alignment(
     }
 }
 pub fn validate_sma(
-    a_type: &AlignmentType,
+    a_type: &AlignmentAlgorithm,
     min_length: usize,
     max_length: usize,
     min_error: i32,
@@ -247,8 +239,8 @@ pub fn validate_sma(
 
     // align them using the method
     let a_result = match a_type {
-        AlignmentType::WavefrontNaive => wavefront_align(&query, &text, &pens),
-        AlignmentType::Reference => reference::affine_gap_align(&query, &text, &pens),
+        AlignmentAlgorithm::Wavefront => wavefront_align(&query, &text, &pens),
+        AlignmentAlgorithm::SWG => reference::affine_gap_align(&query, &text, &pens),
         _ => todo!(),
     };
     match a_result {

@@ -3,7 +3,16 @@
 /// The penalty for any gap is length * extd_pen + open_pen. The extension pen is also applied
 /// when a gap is opened.
 /// Penalties should be a positive int.
-#[derive(Debug, PartialEq, Eq)]
+use strum_macros::EnumString;
+
+#[derive(Clone, Copy, Debug, EnumString)]
+pub enum AlignmentAlgorithm {
+    Wavefront,
+    WavefrontAdaptive,
+    SWG,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Penalties {
     pub mismatch_pen: i32,
     pub open_pen: i32,
@@ -12,7 +21,7 @@ pub struct Penalties {
 
 /// Returned by every alignment function.
 /// The aligned strings have '-' at gaps.
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct Alignment {
     pub score: i32,
     pub query_aligned: String,
@@ -202,25 +211,5 @@ mod tests_wfgrid {
         assert_eq!(grid.matches.len(), 8); // initial = 0, next cycle has 7 values
         assert_eq!(grid.inserts.len(), 8);
         assert_eq!(grid.deletes.len(), 8);
-    }
-
-    #[test]
-    fn test_get_wfgrid() {
-        // TODO
-    }
-
-    #[test]
-    fn test_set_wfgrid() {
-        // TODO
-    }
-
-    #[test]
-    fn test_get_diag_range() {
-        // TODO
-    }
-
-    #[test]
-    fn test_increment() {
-        // TODO
     }
 }

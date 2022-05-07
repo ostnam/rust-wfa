@@ -1,4 +1,5 @@
 use lib::validation_lib::*;
+use lib::alignment_lib::AlignmentAlgorithm;
 
 use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender};
@@ -29,8 +30,8 @@ struct ValidateArgs {
 fn validate(args: ValidateArgs) {
     for cycle in 0..u32::MAX {
         match compare_alignment(
-            &AlignmentType::WavefrontNaive,
-            &AlignmentType::Reference,
+            &AlignmentAlgorithm::Wavefront,
+            &AlignmentAlgorithm::SWG,
             args.min_length,
             args.max_length,
             args.min_error,
@@ -54,8 +55,8 @@ fn validate_concurrent(args: ValidateArgs) {
         threads.push(thread::spawn(move || {
             while new_tx
                 .send(compare_alignment(
-                    &AlignmentType::WavefrontNaive,
-                    &AlignmentType::Reference,
+                    &AlignmentAlgorithm::Wavefront,
+                    &AlignmentAlgorithm::SWG,
                     args.min_length,
                     args.max_length,
                     args.min_error,
@@ -79,7 +80,6 @@ fn validate_concurrent(args: ValidateArgs) {
 
 fn main() {
     let args = ValidateArgs::parse();
-
     if args.parallel {
         validate_concurrent(args);
     } else {

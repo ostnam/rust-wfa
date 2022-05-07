@@ -1,5 +1,5 @@
 use clap::Parser;
-use lib::{reference::affine_gap_align, validation_lib::AlignmentType, wavefront_alignment};
+use lib::{reference::affine_gap_align, alignment_lib::AlignmentAlgorithm, wavefront_alignment};
 use std::io::{stdin, BufRead};
 use std::time::Instant;
 
@@ -8,7 +8,7 @@ use std::time::Instant;
 #[clap(author, version, about, long_about = None)]
 struct MainArgs {
     #[clap(short, long)]
-    algorithm: AlignmentType,
+    algorithm: AlignmentAlgorithm,
 
     #[clap(short, long)]
     mismatch_pen: i32,
@@ -46,11 +46,11 @@ fn main() {
     };
 
     let alignment = match args.algorithm {
-        AlignmentType::WavefrontNaive => wavefront_alignment::wavefront_align(&query, &text, &pens),
-        AlignmentType::WavefrontNaiveAdaptive => {
+        AlignmentAlgorithm::Wavefront => wavefront_alignment::wavefront_align(&query, &text, &pens),
+        AlignmentAlgorithm::WavefrontAdaptive => {
             panic!("WFA-adaptive not yet implemented.");
         }
-        AlignmentType::Reference => affine_gap_align(&query, &text, &pens),
+        AlignmentAlgorithm::SWG => affine_gap_align(&query, &text, &pens),
     };
 
     if let Some(t) = before {
