@@ -1,11 +1,15 @@
 use clap::Parser;
-use lib::{reference::affine_gap_align, alignment_lib::AlignmentAlgorithm, wavefront_alignment};
+use lib::{alignment_lib::AlignmentAlgorithm, reference::affine_gap_align, wavefront_alignment};
 use std::io::{stdin, BufRead};
 use std::time::Instant;
 
 /// Struct used for parsing CLI args with clap.
 #[derive(Parser, Debug)]
-#[clap(author="Mansour Tsougaev", version, about="Wavefront alignment in Rust.")]
+#[clap(
+    author = "Mansour Tsougaev",
+    version,
+    about = "Wavefront alignment in Rust."
+)]
 struct MainArgs {
     #[clap(short, long, default_value_t = AlignmentAlgorithm::Wavefront)]
     /// Alignment algorithm that will be used. Possible values: Wavefront, SWG.

@@ -5,7 +5,11 @@ use super::alignment_lib::*;
 
 /// This function is exported and can be called to perform an alignment.
 /// The query cannot be longer than the text.
-pub fn wavefront_align(query: &str, text: &str, pens: &Penalties) -> Result<Alignment, AlignmentError> {
+pub fn wavefront_align(
+    query: &str,
+    text: &str,
+    pens: &Penalties,
+) -> Result<Alignment, AlignmentError> {
     if query.is_empty() || text.is_empty() {
         return Err(AlignmentError::ZeroLength(format!(
             "At least one of the string slices passed to wavefront_align had a length of zero.

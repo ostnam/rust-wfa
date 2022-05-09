@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use lib::{wavefront_alignment::wavefront_align, alignment_lib::Penalties};
+use lib::{alignment_lib::Penalties, wavefront_alignment::wavefront_align};
 
 fn wavefront_bench_l100_e1(c: &mut Criterion) {
     let query = "ACTCTATTTTACTCAGTGCAGGGTGAGCCGCCTATGCGGAGTGCAGTTACATAGGGAAAGCGGGGCTCAATTGCTACTCGTATGGGGTGTCACAGACGC";
@@ -12,7 +12,9 @@ fn wavefront_bench_l100_e1(c: &mut Criterion) {
         extd_pen: 2,
     };
 
-    c.bench_function("wfa length 100 1% error", |b| b.iter(|| wavefront_align(black_box(query), black_box(text), black_box(&pens))));
+    c.bench_function("wfa length 100 1% error", |b| {
+        b.iter(|| wavefront_align(black_box(query), black_box(text), black_box(&pens)))
+    });
 }
 
 fn wavefront_bench_l100_e10(c: &mut Criterion) {
@@ -24,7 +26,9 @@ fn wavefront_bench_l100_e10(c: &mut Criterion) {
         extd_pen: 2,
     };
 
-    c.bench_function("wfa length 100 10% error", |b| b.iter(|| wavefront_align(black_box(query), black_box(text), black_box(&pens))));
+    c.bench_function("wfa length 100 10% error", |b| {
+        b.iter(|| wavefront_align(black_box(query), black_box(text), black_box(&pens)))
+    });
 }
 
 fn wavefront_bench_l100_e30(c: &mut Criterion) {
@@ -36,7 +40,9 @@ fn wavefront_bench_l100_e30(c: &mut Criterion) {
         extd_pen: 2,
     };
 
-    c.bench_function("wfa length 100 30% error", |b| b.iter(|| wavefront_align(black_box(query), black_box(text), black_box(&pens))));
+    c.bench_function("wfa length 100 30% error", |b| {
+        b.iter(|| wavefront_align(black_box(query), black_box(text), black_box(&pens)))
+    });
 }
 
 fn wavefront_bench_l1000_e1(c: &mut Criterion) {
@@ -48,7 +54,9 @@ fn wavefront_bench_l1000_e1(c: &mut Criterion) {
         extd_pen: 2,
     };
 
-    c.bench_function("wfa length 1000 1% error", |b| b.iter(|| wavefront_align(black_box(query), black_box(text), black_box(&pens))));
+    c.bench_function("wfa length 1000 1% error", |b| {
+        b.iter(|| wavefront_align(black_box(query), black_box(text), black_box(&pens)))
+    });
 }
 
 fn wavefront_bench_l1000_e10(c: &mut Criterion) {
@@ -60,7 +68,9 @@ fn wavefront_bench_l1000_e10(c: &mut Criterion) {
         extd_pen: 2,
     };
 
-    c.bench_function("wfa length 1000 10% error", |b| b.iter(|| wavefront_align(black_box(query), black_box(text), black_box(&pens))));
+    c.bench_function("wfa length 1000 10% error", |b| {
+        b.iter(|| wavefront_align(black_box(query), black_box(text), black_box(&pens)))
+    });
 }
 
 fn wavefront_bench_l1000_e30(c: &mut Criterion) {
@@ -72,7 +82,9 @@ fn wavefront_bench_l1000_e30(c: &mut Criterion) {
         extd_pen: 2,
     };
 
-    c.bench_function("wfa length 1000 30% error", |b| b.iter(|| wavefront_align(black_box(query), black_box(text), black_box(&pens))));
+    c.bench_function("wfa length 1000 30% error", |b| {
+        b.iter(|| wavefront_align(black_box(query), black_box(text), black_box(&pens)))
+    });
 }
 
 fn wavefront_bench_l10000_e1(c: &mut Criterion) {
@@ -84,7 +96,9 @@ fn wavefront_bench_l10000_e1(c: &mut Criterion) {
         extd_pen: 2,
     };
 
-    c.bench_function("wfa length 10000 1% error", |b| b.iter(|| wavefront_align(black_box(query), black_box(text), black_box(&pens))));
+    c.bench_function("wfa length 10000 1% error", |b| {
+        b.iter(|| wavefront_align(black_box(query), black_box(text), black_box(&pens)))
+    });
 }
 
 fn wavefront_bench_l10000_e10(c: &mut Criterion) {
@@ -96,7 +110,9 @@ fn wavefront_bench_l10000_e10(c: &mut Criterion) {
         extd_pen: 2,
     };
 
-    c.bench_function("wfa length 10000 10% error", |b| b.iter(|| wavefront_align(black_box(query), black_box(text), black_box(&pens))));
+    c.bench_function("wfa length 10000 10% error", |b| {
+        b.iter(|| wavefront_align(black_box(query), black_box(text), black_box(&pens)))
+    });
 }
 
 fn wavefront_bench_l10000_e30(c: &mut Criterion) {
@@ -108,10 +124,12 @@ fn wavefront_bench_l10000_e30(c: &mut Criterion) {
         extd_pen: 2,
     };
 
-    c.bench_function("wfa length 10000 30% error", |b| b.iter(|| wavefront_align(black_box(query), black_box(text), black_box(&pens))));
+    c.bench_function("wfa length 10000 30% error", |b| {
+        b.iter(|| wavefront_align(black_box(query), black_box(text), black_box(&pens)))
+    });
 }
 
-criterion_group!{
+criterion_group! {
     name = benches_100;
     config = Criterion::default().significance_level(0.05).sample_size(10).measurement_time(Duration::from_secs(1));
     targets = wavefront_bench_l100_e1,
@@ -119,7 +137,7 @@ criterion_group!{
               wavefront_bench_l100_e30,
 }
 
-criterion_group!{
+criterion_group! {
     name = benches_1000;
     config = Criterion::default().significance_level(0.05).sample_size(10).measurement_time(Duration::from_secs(10));
     targets = wavefront_bench_l1000_e1,
@@ -127,7 +145,7 @@ criterion_group!{
               wavefront_bench_l1000_e30,
 }
 
-criterion_group!{
+criterion_group! {
     name = benches_10000;
     config = Criterion::default().significance_level(0.05).sample_size(10).measurement_time(Duration::from_secs(60));
     targets = wavefront_bench_l10000_e1,
