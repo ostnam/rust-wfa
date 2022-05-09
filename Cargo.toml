@@ -14,12 +14,8 @@ name = "lib"
 path = "src/lib.rs"
 
 [[bin]]
-name = "validate"
-path = "src/validate.rs"
-
-[[bin]]
-name = "validate_score_matches_alignment"
-path = "src/validate_score_matches_alignment.rs"
+name = "validation"
+path = "src/validation.rs"
 
 [[bench]]
 name = "bench_wfa"
