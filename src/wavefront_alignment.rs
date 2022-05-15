@@ -177,7 +177,7 @@ impl Wavefront for WavefrontState<'_> {
         .map(|x| x.unwrap())
         .map(|x| self.grid.get_diag_range(x).unwrap().1)
         .max()
-        .unwrap_or(0);
+        .unwrap_or(-1);
 
         if hi > self.highest_diag {
             hi = self.highest_diag;
@@ -193,7 +193,7 @@ impl Wavefront for WavefrontState<'_> {
         .map(|x| x.unwrap())
         .map(|x| self.grid.get_diag_range(x).unwrap().0)
         .min()
-        .unwrap_or(0)
+        .unwrap_or(1)
             - 1;
 
         if lo < self.lowest_diag {
