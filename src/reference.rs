@@ -1,3 +1,5 @@
+//! Implements the reference gap-affine (SWG) alignment algorithm.
+
 use crate::alignment_lib::*;
 use std::cmp::min;
 

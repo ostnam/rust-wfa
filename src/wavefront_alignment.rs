@@ -1,6 +1,4 @@
-/// This module defines:
-/// * the types used for alignments
-/// * the functions used for wavefront alignments
+//! This module exports the wavefront alignment functions.
 use super::alignment_lib::*;
 
 /// This function is exported and can be called to perform an alignment.
