@@ -182,8 +182,8 @@ fn check_score_error(alignment: Alignment, pens: &Penalties) -> Option<Incorrect
     }
 }
 
-fn compute_score_from_alignment(alignment: &Alignment, pens: &Penalties) -> i32 {
-    let mut computed_score: i32 = 0;
+fn compute_score_from_alignment(alignment: &Alignment, pens: &Penalties) -> u32 {
+    let mut computed_score: u32 = 0;
     let mut current_layer: lib::alignment_lib::AlignmentLayer = AlignmentLayer::Matches;
     for (c1, c2) in alignment
         .query_aligned
@@ -216,7 +216,7 @@ fn compute_score_from_alignment(alignment: &Alignment, pens: &Penalties) -> i32 
 
 struct IncorrectScore {
     alignment: Alignment,
-    computed_score: i32,
+    computed_score: u32,
 }
 
 impl fmt::Debug for IncorrectScore {
@@ -243,8 +243,8 @@ enum ValidationError {
 struct ScoresDiffer {
     query: String,
     text: String,
-    a_score: i32,
-    b_score: i32,
+    a_score: u32,
+    b_score: u32,
     query_aligned_a: String,
     text_aligned_a: String,
     query_aligned_b: String,

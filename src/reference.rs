@@ -3,9 +3,9 @@ use std::cmp::min;
 
 #[derive(Debug)]
 struct AlignMat {
-    inserts: Vec<Vec<(Option<i32>, Option<AlignmentLayer>)>>,
-    matches: Vec<Vec<(Option<i32>, Option<AlignmentLayer>)>>,
-    deletes: Vec<Vec<(Option<i32>, Option<AlignmentLayer>)>>,
+    inserts: Vec<Vec<(Option<u32>, Option<AlignmentLayer>)>>,
+    matches: Vec<Vec<(Option<u32>, Option<AlignmentLayer>)>>,
+    deletes: Vec<Vec<(Option<u32>, Option<AlignmentLayer>)>>,
 }
 
 /// Performs the SWG alignemnt of two &str.
@@ -339,7 +339,7 @@ mod tests {
                 }
             ) {
                 Ok(s) => s.score,
-                _ => -1,
+                _ => 1,
             },
             6
         );
@@ -355,7 +355,7 @@ mod tests {
                 }
             ) {
                 Ok(s) => s.score,
-                _ => -1,
+                _ => 1,
             },
             472
         );

@@ -17,15 +17,15 @@ struct MainArgs {
 
     #[clap(short, long)]
     /// Penalty for mismatching 2 chars.
-    mismatch_pen: i32,
+    mismatch_pen: u32,
 
     #[clap(short, long)]
     /// Penalty for opening a gap.
-    open_pen: i32,
+    open_pen: u32,
 
     #[clap(short, long)]
     /// Penalty for extending a gap by 1. Is also applied once when the gap is opened.
-    extd_pen: i32,
+    extd_pen: u32,
 
     #[clap(short, long)]
     /// Whether to print how long it took to align.

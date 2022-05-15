@@ -24,20 +24,20 @@ pub enum AlignmentAlgorithm {
 pub struct Penalties {
     /// There is a single mismatch penalty for every char combination.
     /// WFA requires that the match penalty is set to 0.
-    pub mismatch_pen: i32,
+    pub mismatch_pen: u32,
 
     /// Gap opening penalty.
-    pub open_pen: i32,
+    pub open_pen: u32,
 
     /// Gap extension penalty. It is also applied when a gap is opened.
-    pub extd_pen: i32,
+    pub extd_pen: u32,
 }
 
 /// This is the value returned by every alignment function after successfully aligning 2 strings.
 /// The aligned strings have '-' at gaps.
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub struct Alignment {
-    pub score: i32,
+    pub score: u32,
     pub query_aligned: String,
     pub text_aligned: String,
 }
@@ -82,9 +82,9 @@ pub(crate) struct WavefrontGrid {
     /// Each layer corresponds to a score.
     offsets: Vec<usize>,
 
-    matches: Vec<Option<(i32, AlignmentLayer)>>,
-    inserts: Vec<Option<(i32, AlignmentLayer)>>,
-    deletes: Vec<Option<(i32, AlignmentLayer)>>,
+    matches: Vec<Option<(u32, AlignmentLayer)>>,
+    inserts: Vec<Option<(u32, AlignmentLayer)>>,
+    deletes: Vec<Option<(u32, AlignmentLayer)>>,
 }
 
 /// Make a new wavefront grid with the first diagonal of (lo, hi)
@@ -142,9 +142,10 @@ impl WavefrontGrid {
     pub(crate) fn get(
         &self,
         layer: AlignmentLayer,
-        score: usize,
+        score: u32,
         diag: i32,
-    ) -> Option<(i32, AlignmentLayer)> {
+    ) -> Option<(u32, AlignmentLayer)> {
+        let score = score as usize;
         if score >= self.offsets.len() || diag < self.diags[score].0 || diag > self.diags[score].1 {
             // offsets is always ahead by 1, since we know the len of a layer
             // when it's created. Adding a new layer updates the offset of the next layer.
@@ -163,10 +164,11 @@ impl WavefrontGrid {
     pub(crate) fn set(
         &mut self,
         layer: AlignmentLayer,
-        score: usize,
+        score: u32,
         diag: i32,
-        value: Option<(i32, AlignmentLayer)>,
+        value: Option<(u32, AlignmentLayer)>,
     ) {
+        let score = score as usize;
         if score < self.offsets.len() && diag >= self.diags[score].0 && diag <= self.diags[score].1
         {
             let position = self.offsets[score] + (diag - self.diags[score].0) as usize;
@@ -178,11 +180,12 @@ impl WavefrontGrid {
         }
     }
 
-    pub(crate) fn get_diag_range(&self, score: usize) -> Option<&(i32, i32)> {
-        self.diags.get(score)
+    pub(crate) fn get_diag_range(&self, score: u32) -> Option<&(i32, i32)> {
+        self.diags.get(score as usize)
     }
 
-    pub(crate) fn increment(&mut self, score: usize, diag: i32) {
+    pub(crate) fn increment(&mut self, score: u32, diag: i32) {
+        let score = score as usize;
         let position = self.offsets[score] + (diag - self.diags[score].0) as usize;
         self.matches[position] = match self.matches[position] {
             Some((score, direction)) => Some((score + 1, direction)),

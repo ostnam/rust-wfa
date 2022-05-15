@@ -49,7 +49,7 @@ struct WavefrontState<'a> {
     t_chars: Vec<char>,
 
     /// Counter for looping and later backtracking.
-    current_score: usize,
+    current_score: u32,
 
     grid: WavefrontGrid,
 
@@ -118,7 +118,7 @@ impl Wavefront for WavefrontState<'_> {
                 Some((val, _)) => val,
                 _ => continue,
             };
-            let mut query_pos = (text_pos + diag) as usize;
+            let mut query_pos = (text_pos as i32 + diag) as usize;
             let mut text_pos = text_pos as usize;
             // The furthest reaching point value stored is the number
             // of matched chars in the Text string.
@@ -170,14 +170,14 @@ impl Wavefront for WavefrontState<'_> {
 
         // Calculating the next highest diagonal of the wavefront
         let mut hi = 1 + vec![
-            self.current_score as i32 - self.pens.mismatch_pen,
-            self.current_score as i32 - self.pens.open_pen - self.pens.extd_pen,
-            self.current_score as i32 - self.pens.extd_pen,
+            self.current_score.checked_sub(self.pens.mismatch_pen),
+            self.current_score.checked_sub(self.pens.open_pen + self.pens.extd_pen),
+            self.current_score.checked_sub(self.pens.extd_pen),
         ]
         .into_iter()
-        .filter(|x| *x >= 0)
-        .map(|x| x as usize)
-        .map(|x| self.grid.get_diag_range(x).unwrap_or(&(0, 0)).1)
+        .filter(|x| x.is_some())
+        .map(|x| x.unwrap())
+        .map(|x| self.grid.get_diag_range(x).unwrap().1)
         .max()
         .unwrap_or(0);
 
@@ -186,14 +186,14 @@ impl Wavefront for WavefrontState<'_> {
         }
 
         let mut lo = vec![
-            self.current_score as i32 - self.pens.mismatch_pen,
-            self.current_score as i32 - self.pens.open_pen - self.pens.extd_pen,
-            self.current_score as i32 - self.pens.extd_pen,
+            self.current_score.checked_sub(self.pens.mismatch_pen),
+            self.current_score.checked_sub(self.pens.open_pen + self.pens.extd_pen),
+            self.current_score.checked_sub(self.pens.extd_pen),
         ]
         .into_iter()
-        .filter(|x| *x >= 0)
-        .map(|x| x as usize)
-        .map(|x| self.grid.get_diag_range(x).unwrap_or(&(0, 0)).0)
+        .filter(|x| x.is_some())
+        .map(|x| x.unwrap())
+        .map(|x| self.grid.get_diag_range(x).unwrap().0)
         .min()
         .unwrap_or(0)
             - 1;
@@ -238,7 +238,7 @@ impl Wavefront for WavefrontState<'_> {
                                     .0
                             {
                                 query_aligned
-                                    .push(self.q_chars[(current_char + curr_diag - 1) as usize]);
+                                    .push(self.q_chars[(current_char as i32 + curr_diag - 1) as usize]);
                                 text_aligned.push(self.t_chars[(current_char - 1) as usize]);
                                 current_char -= 1;
                             }
@@ -254,14 +254,14 @@ impl Wavefront for WavefrontState<'_> {
                                     .0
                             {
                                 query_aligned
-                                    .push(self.q_chars[(current_char + curr_diag - 1) as usize]);
+                                    .push(self.q_chars[(current_char as i32 + curr_diag - 1) as usize]);
                                 text_aligned.push(self.t_chars[(current_char - 1) as usize]);
                                 current_char -= 1;
                             }
                         }
                         Some((score, AlignmentLayer::Matches)) => {
                             let mut current_char = score;
-                            curr_score -= self.pens.mismatch_pen as usize;
+                            curr_score -= self.pens.mismatch_pen;
                             while current_char
                                 > self
                                     .grid
@@ -270,7 +270,7 @@ impl Wavefront for WavefrontState<'_> {
                                     .0
                             {
                                 query_aligned
-                                    .push(self.q_chars[(current_char + curr_diag - 1) as usize]);
+                                    .push(self.q_chars[(current_char as i32 + curr_diag - 1) as usize]);
                                 text_aligned.push(self.t_chars[(current_char - 1) as usize]);
                                 current_char -= 1;
                             }
@@ -289,14 +289,14 @@ impl Wavefront for WavefrontState<'_> {
                                 .grid
                                 .get(
                                     AlignmentLayer::Matches,
-                                    curr_score - (self.pens.extd_pen + self.pens.open_pen) as usize,
+                                    curr_score - self.pens.extd_pen - self.pens.open_pen,
                                     curr_diag - 1,
                                 )
                                 .unwrap();
-                            query_aligned.push(self.q_chars[(previous.0 + curr_diag - 1) as usize]);
+                            query_aligned.push(self.q_chars[(previous.0 as i32 + curr_diag - 1) as usize]);
                             text_aligned.push('-');
                             curr_diag -= 1;
-                            curr_score -= (self.pens.extd_pen + self.pens.open_pen) as usize;
+                            curr_score -= self.pens.extd_pen + self.pens.open_pen;
                             curr_layer = AlignmentLayer::Matches;
                         }
                         Some((_, AlignmentLayer::Inserts)) => {
@@ -304,14 +304,14 @@ impl Wavefront for WavefrontState<'_> {
                                 .grid
                                 .get(
                                     AlignmentLayer::Inserts,
-                                    curr_score - self.pens.extd_pen as usize,
+                                    curr_score - self.pens.extd_pen,
                                     curr_diag - 1,
                                 )
                                 .unwrap();
-                            query_aligned.push(self.q_chars[(previous.0 + curr_diag - 1) as usize]);
+                            query_aligned.push(self.q_chars[(previous.0 as i32 + curr_diag - 1) as usize]);
                             text_aligned.push('-');
                             curr_diag -= 1;
-                            curr_score -= self.pens.extd_pen as usize;
+                            curr_score -= self.pens.extd_pen;
                         }
                         _ => panic!(),
                     };
@@ -326,14 +326,14 @@ impl Wavefront for WavefrontState<'_> {
                                 .grid
                                 .get(
                                     AlignmentLayer::Matches,
-                                    curr_score - (self.pens.extd_pen + self.pens.open_pen) as usize,
+                                    curr_score - self.pens.extd_pen - self.pens.open_pen,
                                     curr_diag + 1,
                                 )
                                 .unwrap();
                             query_aligned.push('-');
                             text_aligned.push(self.t_chars[(previous.0) as usize]);
                             curr_diag += 1;
-                            curr_score -= (self.pens.extd_pen + self.pens.open_pen) as usize;
+                            curr_score -= self.pens.extd_pen + self.pens.open_pen;
                             curr_layer = AlignmentLayer::Matches;
                         }
 
@@ -342,14 +342,14 @@ impl Wavefront for WavefrontState<'_> {
                                 .grid
                                 .get(
                                     AlignmentLayer::Deletes,
-                                    curr_score - self.pens.extd_pen as usize,
+                                    curr_score - self.pens.extd_pen,
                                     curr_diag + 1,
                                 )
                                 .unwrap();
                             query_aligned.push('-');
                             text_aligned.push(self.t_chars[(previous.0) as usize]);
                             curr_diag += 1;
-                            curr_score -= self.pens.extd_pen as usize;
+                            curr_score -= self.pens.extd_pen;
                         }
                         _ => panic!(),
                     };
@@ -372,7 +372,7 @@ impl Wavefront for WavefrontState<'_> {
         let t = text_aligned.chars().rev().collect();
 
         Ok(Alignment {
-            score: self.current_score as i32,
+            score: self.current_score,
             query_aligned: q,
             text_aligned: t,
         })
@@ -381,20 +381,20 @@ impl Wavefront for WavefrontState<'_> {
 
 impl<'a> WavefrontState<'a> {
     fn update_ins(&mut self, diag: i32) {
-        let from_open = if self.current_score >= (self.pens.open_pen + self.pens.extd_pen) as usize
+        let from_open = if self.current_score >= (self.pens.open_pen + self.pens.extd_pen)
         {
             self.grid.get(
                 AlignmentLayer::Matches,
-                self.current_score - (self.pens.open_pen + self.pens.extd_pen) as usize,
+                self.current_score - (self.pens.open_pen + self.pens.extd_pen),
                 diag - 1,
             )
         } else {
             None
         };
-        let from_extd = if self.current_score >= self.pens.extd_pen as usize {
+        let from_extd = if self.current_score >= self.pens.extd_pen {
             self.grid.get(
                 AlignmentLayer::Inserts,
-                self.current_score - self.pens.extd_pen as usize,
+                self.current_score - self.pens.extd_pen,
                 diag - 1,
             )
         } else {
@@ -439,20 +439,20 @@ impl<'a> WavefrontState<'a> {
     }
 
     fn update_del(&mut self, diag: i32) {
-        let from_open = if self.current_score >= (self.pens.open_pen + self.pens.extd_pen) as usize
+        let from_open = if self.current_score >= self.pens.open_pen + self.pens.extd_pen
         {
             self.grid.get(
                 AlignmentLayer::Matches,
-                self.current_score - (self.pens.open_pen + self.pens.extd_pen) as usize,
+                self.current_score - (self.pens.open_pen + self.pens.extd_pen),
                 diag + 1,
             )
         } else {
             None
         };
-        let from_extd = if self.current_score >= self.pens.extd_pen as usize {
+        let from_extd = if self.current_score >= self.pens.extd_pen {
             self.grid.get(
                 AlignmentLayer::Deletes,
-                self.current_score - self.pens.extd_pen as usize,
+                self.current_score - self.pens.extd_pen,
                 diag + 1,
             )
         } else {
@@ -498,10 +498,10 @@ impl<'a> WavefrontState<'a> {
     }
 
     fn update_mat(&mut self, diag: i32) {
-        let from_mismatch = if self.current_score >= self.pens.mismatch_pen as usize {
+        let from_mismatch = if self.current_score >= self.pens.mismatch_pen {
             self.grid.get(
                 AlignmentLayer::Matches,
-                self.current_score - self.pens.mismatch_pen as usize,
+                self.current_score - self.pens.mismatch_pen,
                 diag,
             )
         } else {
@@ -780,7 +780,7 @@ mod tests {
                 }
             ) {
                 Ok(s) => s.score,
-                _ => -1,
+                _ => 1,
             },
             6
         );
@@ -796,7 +796,7 @@ mod tests {
                 }
             ) {
                 Ok(s) => s.score,
-                _ => -1,
+                _ => 1,
             },
             472
         );
