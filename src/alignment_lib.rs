@@ -1,3 +1,5 @@
+//! General types and functions that are useful for alignments.
+
 /// Holds penalties scores.
 /// There is no match penalty: matches do not change the score.
 /// The penalty for any gap is length * extd_pen + open_pen. The extension pen is also applied
@@ -31,7 +33,7 @@ pub struct Penalties {
     pub extd_pen: i32,
 }
 
-/// Returned by every alignment function.
+/// This is the value returned by every alignment function after successfully aligning 2 strings.
 /// The aligned strings have '-' at gaps.
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub struct Alignment {

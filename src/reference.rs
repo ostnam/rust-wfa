@@ -8,6 +8,7 @@ struct AlignMat {
     deletes: Vec<Vec<(Option<i32>, Option<AlignmentLayer>)>>,
 }
 
+/// Performs the SWG alignemnt of two &str.
 pub fn affine_gap_align(a: &str, b: &str, pens: &Penalties) -> Result<Alignment, AlignmentError> {
     let align_mat = affine_gap_mat(a, b, pens);
     trace_back(&align_mat, a, b)
