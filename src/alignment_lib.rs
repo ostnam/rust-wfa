@@ -5,17 +5,29 @@
 /// Penalties should be a positive int.
 use strum_macros::{Display, EnumString};
 
+/// The different alignment algorithms implemented in this crate.
 #[derive(Clone, Copy, Debug, EnumString, Display)]
 pub enum AlignmentAlgorithm {
+    /// Basic WFA.
     Wavefront,
+    
     WavefrontAdaptive,
+
+    /// DP matrix based, gap-affine, unoptimized alignment.
     SWG,
 }
 
+/// Penalties used for WFA.
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Penalties {
+    /// There is a single mismatch penalty for every char combination.
+    /// WFA requires that the match penalty is set to 0.
     pub mismatch_pen: i32,
+
+    /// Gap opening penalty.
     pub open_pen: i32,
+
+    /// Gap extension penalty. It is also applied when a gap is opened.
     pub extd_pen: i32,
 }
 
@@ -47,7 +59,7 @@ pub enum AlignmentLayer {
 }
 
 /// The methods for every wavefront type.
-pub trait Wavefront {
+pub(crate) trait Wavefront {
     fn extend(&mut self);
     fn next(&mut self);
     fn increment_score(&mut self);
@@ -59,7 +71,7 @@ pub trait Wavefront {
 /// T is the type used to store the number of chars matched.
 /// U is the type used for diagonals.
 #[derive(Debug, Eq, PartialEq)]
-pub struct WavefrontGrid {
+pub(crate) struct WavefrontGrid {
     /// The vec of (lowest valid diag, highest valid diag) for each score.
     /// Lowest is always a negative value, stored using an unsigned type.
     diags: Vec<(i32, i32)>,
@@ -75,7 +87,7 @@ pub struct WavefrontGrid {
 
 /// Make a new wavefront grid with the first diagonal of (lo, hi)
 /// lo and hi = 0 for a 1-element initial diagonal.
-pub fn new_wavefront_grid() -> WavefrontGrid {
+pub(crate) fn new_wavefront_grid() -> WavefrontGrid {
     let diags = vec![(0, 0)];
     // Stores the tuple of the (lowest, highest) diagonals for a given score.
     // Initial value = (0, 0) => the last value is included.
@@ -110,7 +122,7 @@ pub fn new_wavefront_grid() -> WavefrontGrid {
 impl WavefrontGrid {
     /// Add a new layer to the wavefronts.
     /// lo and hi are the lowest/highest diagonals for this new layer.
-    pub fn add_layer(&mut self, lo: i32, hi: i32) {
+    pub(crate) fn add_layer(&mut self, lo: i32, hi: i32) {
         self.diags.push((lo, hi));
 
         let new_width: usize = (hi - lo + 1) as usize;
@@ -125,7 +137,7 @@ impl WavefrontGrid {
     }
 
     /// Get a value.
-    pub fn get(
+    pub(crate) fn get(
         &self,
         layer: AlignmentLayer,
         score: usize,
@@ -146,7 +158,7 @@ impl WavefrontGrid {
         }
     }
 
-    pub fn set(
+    pub(crate) fn set(
         &mut self,
         layer: AlignmentLayer,
         score: usize,
@@ -164,11 +176,11 @@ impl WavefrontGrid {
         }
     }
 
-    pub fn get_diag_range(&self, score: usize) -> Option<&(i32, i32)> {
+    pub(crate) fn get_diag_range(&self, score: usize) -> Option<&(i32, i32)> {
         self.diags.get(score)
     }
 
-    pub fn increment(&mut self, score: usize, diag: i32) {
+    pub(crate) fn increment(&mut self, score: usize, diag: i32) {
         let position = self.offsets[score] + (diag - self.diags[score].0) as usize;
         self.matches[position] = match self.matches[position] {
             Some((score, direction)) => Some((score + 1, direction)),
