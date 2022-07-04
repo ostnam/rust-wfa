@@ -154,8 +154,8 @@ This was an initial, naive implementation of the WFA algorithm. For instance, I 
 In the next version, I rewrote my implementation to use a more efficient 1D Vec<i32>.
 |          | n = 100, d = 1% | n = 100, d = 10% | n = 100, d = 30% | n = 1k, d = 1% | n = 1k, d = 10% | n = 1k, d = 30% | n = 10k, d = 1% | n = 10k, d = 10% | n = 10k, d = 30% |
 |:--------:|:-----------:|:-----------:|:------------:|:----------:|:----------:|:------------:|:------------:|:------------:|:-------------:|
-| rust-wfa | 3.18 µs  | 12 µs | 36 µs |  31 µs  | 779 µs    |   3.4 ms |  1.3 ms | 89 ms   | 377 ms    |
-| WFA2     |  5 µs  |  25 µs |  53 µs |     42 µs |   665 µs |    2 ms |    1 ms   |    37 ms |   140 ms |
-| WFA2 SWG | 87 µs  |  90 µs |  95 µs | 11 ms     | 11 ms    |   11 ms | 1 s       | 1 s      | 1 s      |
+| rust-wfa | 23 µs       | 82 µs | 227 µs | 164 µs  | 4.6 ms    |   14.1 ms |  7.7 ms | 244 ms | 1.1 s |
+| WFA2     |  28 µs  |  147 µs | 332 µs | 220 µs |   1.5 ms |    3.6 ms |    2.3 ms   | 25 ms | 87 ms |
+| WFA2 SWG | 82 µs  |  102 µs |  103 µs | 11 ms     | 10 ms    |   7 ms | 1 s       | 1 s      | 1 s      |
 
 The runtime was reduced by ~90%. My implementation is now competitive with the reference one, and efficient SWG.
